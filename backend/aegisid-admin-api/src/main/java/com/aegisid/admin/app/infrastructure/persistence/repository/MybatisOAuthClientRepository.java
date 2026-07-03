@@ -29,6 +29,16 @@ public class MybatisOAuthClientRepository implements OAuthClientRepository {
     }
 
     @Override
+    public List<OAuthClient> findByApplicationId(String applicationId) {
+        return oauthClientMapper.selectList(Wrappers.<OAuthClientEntity>lambdaQuery()
+                        .eq(OAuthClientEntity::getApplicationId, applicationId)
+                        .orderByDesc(OAuthClientEntity::getCreatedAt))
+                .stream()
+                .map(this::toDomain)
+                .toList();
+    }
+
+    @Override
     public OAuthClient save(OAuthClient oauthClient) {
         OAuthClientEntity entity = toEntity(oauthClient);
         oauthClientMapper.insert(entity);
@@ -90,4 +100,3 @@ public class MybatisOAuthClientRepository implements OAuthClientRepository {
         return Arrays.stream(value.split(SEPARATOR)).toList();
     }
 }
-

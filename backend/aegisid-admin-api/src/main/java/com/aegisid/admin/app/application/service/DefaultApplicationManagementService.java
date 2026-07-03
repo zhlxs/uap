@@ -101,6 +101,12 @@ public class DefaultApplicationManagementService implements ApplicationManagemen
     }
 
     @Override
+    public List<OAuthClient> listOAuthClients(String applicationId) {
+        get(applicationId);
+        return oauthClientRepository.findByApplicationId(applicationId);
+    }
+
+    @Override
     @Transactional
     public OAuthClient createOAuthClient(CreateOAuthClientCommand command) {
         get(command.applicationId());

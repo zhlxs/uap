@@ -91,6 +91,14 @@ public class ApplicationController {
         return ApiResponse.ok(OAuthClientResponse.from(oauthClient));
     }
 
+    @GetMapping("/{id}/oauth-clients")
+    ApiResponse<List<OAuthClientResponse>> listOAuthClients(@PathVariable String id) {
+        return ApiResponse.ok(applicationManagementService.listOAuthClients(id)
+                .stream()
+                .map(OAuthClientResponse::from)
+                .toList());
+    }
+
     @PostMapping("/oauth-clients/{clientId}/secrets")
     ApiResponse<CreatedClientSecretResponse> createClientSecret(@PathVariable String clientId) {
         CreatedClientSecret secret = applicationManagementService.createClientSecret(clientId);
@@ -107,4 +115,3 @@ public class ApplicationController {
         ));
     }
 }
-

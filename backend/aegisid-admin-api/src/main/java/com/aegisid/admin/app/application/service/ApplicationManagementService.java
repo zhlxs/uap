@@ -18,6 +18,8 @@ public interface ApplicationManagementService {
 
     Application disable(String id);
 
+    List<OAuthClient> listOAuthClients(String applicationId);
+
     OAuthClient createOAuthClient(CreateOAuthClientCommand command);
 
     CreatedClientSecret createClientSecret(String clientId);

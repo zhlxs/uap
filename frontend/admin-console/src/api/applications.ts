@@ -42,9 +42,12 @@ export function createOAuthClient(applicationId: string, input: OAuthClientCreat
   });
 }
 
+export function listOAuthClients(applicationId: string): Promise<OAuthClient[]> {
+  return request<OAuthClient[]>(`/api/admin/applications/${applicationId}/oauth-clients`);
+}
+
 export function createClientSecret(clientId: string): Promise<ClientSecret> {
   return request<ClientSecret>(`/api/admin/applications/oauth-clients/${clientId}/secrets`, {
     method: 'POST'
   });
 }
-

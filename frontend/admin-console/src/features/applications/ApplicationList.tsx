@@ -1,5 +1,6 @@
 import {
   AppstoreAddOutlined,
+  CopyOutlined,
   KeyOutlined,
   PlusOutlined,
   PoweroffOutlined,
@@ -14,13 +15,16 @@ import {
   Col,
   Descriptions,
   Drawer,
+  Empty,
   Flex,
   Input,
+  List,
   Row,
   Segmented,
   Space,
   Statistic,
   Table,
+  Tabs,
   Tag,
   Typography,
   message
@@ -34,12 +38,20 @@ import {
   disableApplication,
   enableApplication,
   listApplications,
+  listOAuthClients,
   listPermissionModes
 } from '../../api/applications';
 import { ApplicationCreatePanel } from './ApplicationCreatePanel';
 import { OAuthClientCreatePanel } from './OAuthClientCreatePanel';
 import { SecretRevealDialog } from './SecretRevealDialog';
-import type { Application, ApplicationCreateInput, ApplicationMode, ClientSecret, OAuthClientCreateInput } from './types';
+import type {
+  Application,
+  ApplicationCreateInput,
+  ApplicationMode,
+  ClientSecret,
+  OAuthClient,
+  OAuthClientCreateInput
+} from './types';
 
 const statusMap: Record<string, { color: string; text: string }> = {
   active: { color: 'success', text: '已启用' },
@@ -47,15 +59,19 @@ const statusMap: Record<string, { color: string; text: string }> = {
   draft: { color: 'warning', text: '草稿' }
 };
 
+const issuer = 'http://127.0.0.1:9100';
+
 export function ApplicationList() {
   const [applications, setApplications] = useState<Application[]>([]);
   const [modes, setModes] = useState<ApplicationMode[]>([]);
   const [selected, setSelected] = useState<Application | null>(null);
+  const [oauthClients, setOauthClients] = useState<OAuthClient[]>([]);
   const [secret, setSecret] = useState<ClientSecret | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [showClientCreate, setShowClientCreate] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [clientLoading, setClientLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [keyword, setKeyword] = useState('');
@@ -81,22 +97,51 @@ export function ApplicationList() {
     }
   }
 
+  async function refreshOAuthClients(applicationId: string) {
+    setClientLoading(true);
+    try {
+      setOauthClients(await listOAuthClients(applicationId));
+    } catch (exception) {
+      setError(exception instanceof Error ? exception.message : '加载 OIDC Client 失败');
+    } finally {
+      setClientLoading(false);
+    }
+  }
+
+  function openDetail(application: Application) {
+    setSelected(application);
+    setShowDetail(true);
+    void refreshOAuthClients(application.id);
+  }
+
   useEffect(() => {
     void refresh();
   }, []);
 
+  useEffect(() => {
+    if (showDetail && selected) {
+      void refreshOAuthClients(selected.id);
+    }
+  }, [selected?.id, showDetail]);
+
   const filteredApplications = useMemo(() => {
     return applications.filter((application) => {
+      const lowerKeyword = keyword.toLowerCase();
       const matchedKeyword =
         !keyword ||
-        application.appName.toLowerCase().includes(keyword.toLowerCase()) ||
-        application.appCode.toLowerCase().includes(keyword.toLowerCase());
+        application.appName.toLowerCase().includes(lowerKeyword) ||
+        application.appCode.toLowerCase().includes(lowerKeyword);
       const matchedStatus = statusFilter === 'all' || application.status === statusFilter;
       return matchedKeyword && matchedStatus;
     });
   }, [applications, keyword, statusFilter]);
 
   const activeCount = useMemo(() => applications.filter((item) => item.status === 'active').length, [applications]);
+
+  async function copyText(value: string, successText: string) {
+    await navigator.clipboard.writeText(value);
+    void message.success(successText);
+  }
 
   async function handleCreate(input: ApplicationCreateInput) {
     setBusy(true);
@@ -105,8 +150,7 @@ export function ApplicationList() {
       const created = await createApplication(input);
       setShowCreate(false);
       await refresh();
-      setSelected(created);
-      setShowDetail(true);
+      openDetail(created);
       void message.success('应用创建成功');
     } catch (exception) {
       setError(exception instanceof Error ? exception.message : '创建应用失败');
@@ -126,6 +170,7 @@ export function ApplicationList() {
       const createdSecret = await createClientSecret(client.clientId);
       setShowClientCreate(false);
       setSecret(createdSecret);
+      await refreshOAuthClients(selected.id);
       void message.success('OIDC Client 创建成功');
     } catch (exception) {
       setError(exception instanceof Error ? exception.message : '创建 OIDC Client 失败');
@@ -199,14 +244,8 @@ export function ApplicationList() {
       width: 210,
       render: (_, record) => (
         <Space>
-          <Button
-            type="link"
-            onClick={() => {
-              setSelected(record);
-              setShowDetail(true);
-            }}
-          >
-            详情
+          <Button type="link" onClick={() => openDetail(record)}>
+            配置
           </Button>
           <Button type="link" icon={<PoweroffOutlined />} loading={busy && selected?.id === record.id} onClick={() => void toggleStatus(record)}>
             {record.status === 'active' ? '禁用' : '启用'}
@@ -235,7 +274,7 @@ export function ApplicationList() {
         </Space>
       </Flex>
 
-      <Row gutter={16}>
+      <Row gutter={[16, 16]}>
         <Col xs={24} md={8}>
           <Card>
             <Statistic title="接入应用" value={applications.length} prefix={<AppstoreAddOutlined />} />
@@ -287,37 +326,116 @@ export function ApplicationList() {
           scroll={{ x: 1080 }}
           pagination={{ pageSize: 10, showSizeChanger: false }}
           onRow={(record) => ({
-            onDoubleClick: () => {
-              setSelected(record);
-              setShowDetail(true);
-            }
+            onDoubleClick: () => openDetail(record)
           })}
         />
       </Card>
 
-      <Drawer title="应用详情" width={640} open={showDetail} onClose={() => setShowDetail(false)}>
+      <Drawer title={selected?.appName ?? '应用配置'} width={860} open={showDetail} onClose={() => setShowDetail(false)}>
         {selected && (
-          <Space direction="vertical" size={18} style={{ width: '100%' }}>
-            <Descriptions bordered column={1} size="middle">
-              <Descriptions.Item label="应用名称">{selected.appName}</Descriptions.Item>
-              <Descriptions.Item label="应用编码">{selected.appCode}</Descriptions.Item>
-              <Descriptions.Item label="协议">{selected.protocol.toUpperCase()}</Descriptions.Item>
-              <Descriptions.Item label="应用类型">{selected.appType}</Descriptions.Item>
-              <Descriptions.Item label="权限模式">{selected.permissionMode}</Descriptions.Item>
-              <Descriptions.Item label="首页地址">{selected.homepageUrl || '-'}</Descriptions.Item>
-              <Descriptions.Item label="状态">
-                <Tag color={statusMap[selected.status]?.color}>{statusMap[selected.status]?.text ?? selected.status}</Tag>
-              </Descriptions.Item>
-            </Descriptions>
-            <Space>
-              <Button icon={<PoweroffOutlined />} loading={busy} onClick={() => void toggleStatus(selected)}>
-                {selected.status === 'active' ? '禁用应用' : '启用应用'}
-              </Button>
-              <Button type="primary" icon={<KeyOutlined />} onClick={() => setShowClientCreate(true)}>
-                创建 OIDC Client
-              </Button>
-            </Space>
-          </Space>
+          <Tabs
+            items={[
+              {
+                key: 'overview',
+                label: '概览',
+                children: (
+                  <Space direction="vertical" size={18} style={{ width: '100%' }}>
+                    <Descriptions bordered column={1} size="middle">
+                      <Descriptions.Item label="应用名称">{selected.appName}</Descriptions.Item>
+                      <Descriptions.Item label="应用编码">{selected.appCode}</Descriptions.Item>
+                      <Descriptions.Item label="协议">{selected.protocol.toUpperCase()}</Descriptions.Item>
+                      <Descriptions.Item label="应用类型">{selected.appType}</Descriptions.Item>
+                      <Descriptions.Item label="权限模式">{selected.permissionMode}</Descriptions.Item>
+                      <Descriptions.Item label="首页地址">{selected.homepageUrl || '-'}</Descriptions.Item>
+                      <Descriptions.Item label="状态">
+                        <Tag color={statusMap[selected.status]?.color}>{statusMap[selected.status]?.text ?? selected.status}</Tag>
+                      </Descriptions.Item>
+                    </Descriptions>
+                    <Space>
+                      <Button icon={<PoweroffOutlined />} loading={busy} onClick={() => void toggleStatus(selected)}>
+                        {selected.status === 'active' ? '禁用应用' : '启用应用'}
+                      </Button>
+                      <Button type="primary" icon={<KeyOutlined />} onClick={() => setShowClientCreate(true)}>
+                        创建 OIDC Client
+                      </Button>
+                    </Space>
+                  </Space>
+                )
+              },
+              {
+                key: 'clients',
+                label: `OIDC Client (${oauthClients.length})`,
+                children: (
+                  <List<OAuthClient>
+                    loading={clientLoading}
+                    dataSource={oauthClients}
+                    locale={{ emptyText: <Empty description="暂无 OIDC Client" /> }}
+                    renderItem={(client) => (
+                      <List.Item
+                        actions={[
+                          <Button
+                            key="copy"
+                            type="link"
+                            icon={<CopyOutlined />}
+                            onClick={() => void copyText(client.clientId, '已复制 Client ID')}
+                          >
+                            复制 Client ID
+                          </Button>
+                        ]}
+                      >
+                        <List.Item.Meta
+                          title={
+                            <Space>
+                              <Typography.Text strong>{client.clientName}</Typography.Text>
+                              <Tag color={statusMap[client.status]?.color}>{statusMap[client.status]?.text ?? client.status}</Tag>
+                            </Space>
+                          }
+                          description={
+                            <Space direction="vertical" size={6}>
+                              <Typography.Text copyable>{client.clientId}</Typography.Text>
+                              <Space wrap>
+                                {client.scopes.map((scope) => (
+                                  <Tag key={scope}>{scope}</Tag>
+                                ))}
+                              </Space>
+                              <Typography.Text type="secondary">
+                                授权方式：{client.grantTypes.join(', ')}；PKCE：{client.requirePkce ? '启用' : '关闭'}
+                              </Typography.Text>
+                            </Space>
+                          }
+                        />
+                      </List.Item>
+                    )}
+                  />
+                )
+              },
+              {
+                key: 'permission',
+                label: '权限模式',
+                children: (
+                  <Alert
+                    type="info"
+                    showIcon
+                    message={`当前模式：${selected.permissionMode}`}
+                    description="后续这里会承载菜单、按钮、API 和数据权限的接入策略配置。轻权限系统可只消费登录身份与基础 claims，强权限系统可进一步接入 UAP 权限模型与授权 API。"
+                  />
+                )
+              },
+              {
+                key: 'integration',
+                label: '接入参数',
+                children: (
+                  <Descriptions bordered column={1} size="middle">
+                    <Descriptions.Item label="Issuer">{issuer}</Descriptions.Item>
+                    <Descriptions.Item label="授权端点">{`${issuer}/oauth2/authorize`}</Descriptions.Item>
+                    <Descriptions.Item label="Token 端点">{`${issuer}/oauth2/token`}</Descriptions.Item>
+                    <Descriptions.Item label="JWKS">{`${issuer}/oauth2/jwks`}</Descriptions.Item>
+                    <Descriptions.Item label="默认 Scope">openid profile email</Descriptions.Item>
+                  </Descriptions>
+                )
+              }
+            ]}
+          />
         )}
       </Drawer>
 
