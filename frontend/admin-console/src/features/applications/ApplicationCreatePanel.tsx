@@ -1,9 +1,9 @@
-import { X } from 'lucide-react';
-import { useState } from 'react';
+import { Drawer, Form, Input, Select, Space, Button, Typography } from 'antd';
 import type { ApplicationCreateInput, ApplicationMode } from './types';
 
 type Props = {
   modes: ApplicationMode[];
+  open: boolean;
   busy: boolean;
   onClose: () => void;
   onSubmit: (input: ApplicationCreateInput) => Promise<void>;
@@ -24,94 +24,79 @@ const defaultCapabilities = {
   }
 };
 
-export function ApplicationCreatePanel({ modes, busy, onClose, onSubmit }: Props) {
-  const [form, setForm] = useState<ApplicationCreateInput>({
-    appCode: '',
-    appName: '',
-    appType: 'web',
-    protocol: 'oidc',
-    homepageUrl: '',
-    permissionMode: 'delegated',
-    permissionCapabilitiesJson: JSON.stringify(defaultCapabilities)
-  });
-
-  function update<K extends keyof ApplicationCreateInput>(key: K, value: ApplicationCreateInput[K]) {
-    setForm((current) => ({ ...current, [key]: value }));
-  }
+export function ApplicationCreatePanel({ modes, open, busy, onClose, onSubmit }: Props) {
+  const [form] = Form.useForm<ApplicationCreateInput>();
 
   return (
-    <div className="drawer-backdrop">
-      <aside className="drawer" aria-label="创建应用">
-        <div className="drawer-header">
-          <div>
-            <p className="eyebrow">Application</p>
-            <h2>创建应用</h2>
-          </div>
-          <button className="icon-button" type="button" onClick={onClose} aria-label="关闭">
-            <X size={18} />
-          </button>
-        </div>
+    <Drawer
+      title="创建应用"
+      width={560}
+      open={open}
+      onClose={onClose}
+      destroyOnClose
+      extra={
+        <Space>
+          <Button onClick={onClose}>取消</Button>
+          <Button type="primary" loading={busy} onClick={() => form.submit()}>
+            创建
+          </Button>
+        </Space>
+      }
+    >
+      <Typography.Paragraph type="secondary">
+        应用是业务系统接入 AegisID 的管理单元，创建后再配置 OIDC Client、回调地址和授权范围。
+      </Typography.Paragraph>
 
-        <form
-          className="form-grid"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void onSubmit(form);
-          }}
-        >
-          <label>
-            应用编码
-            <input value={form.appCode} onChange={(event) => update('appCode', event.target.value)} required maxLength={64} />
-          </label>
-          <label>
-            应用名称
-            <input value={form.appName} onChange={(event) => update('appName', event.target.value)} required maxLength={128} />
-          </label>
-          <label>
-            应用类型
-            <select value={form.appType} onChange={(event) => update('appType', event.target.value)}>
-              <option value="web">Web</option>
-              <option value="spa">SPA</option>
-              <option value="backend">Backend</option>
-              <option value="saml">SAML</option>
-              <option value="cas">CAS</option>
-            </select>
-          </label>
-          <label>
-            协议
-            <select value={form.protocol} onChange={(event) => update('protocol', event.target.value)}>
-              <option value="oidc">OIDC</option>
-              <option value="oauth2">OAuth2</option>
-              <option value="saml">SAML</option>
-              <option value="cas">CAS</option>
-            </select>
-          </label>
-          <label className="full-span">
-            首页地址
-            <input value={form.homepageUrl} onChange={(event) => update('homepageUrl', event.target.value)} maxLength={512} />
-          </label>
-          <label className="full-span">
-            权限模式
-            <select value={form.permissionMode} onChange={(event) => update('permissionMode', event.target.value)}>
-              {modes.map((mode) => (
-                <option key={mode.mode} value={mode.mode}>
-                  {mode.displayName}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <div className="drawer-actions">
-            <button className="secondary-action" type="button" onClick={onClose}>
-              取消
-            </button>
-            <button className="primary-action" type="submit" disabled={busy}>
-              创建
-            </button>
-          </div>
-        </form>
-      </aside>
-    </div>
+      <Form<ApplicationCreateInput>
+        form={form}
+        layout="vertical"
+        requiredMark={false}
+        initialValues={{
+          appType: 'web',
+          protocol: 'oidc',
+          permissionMode: 'delegated',
+          homepageUrl: '',
+          permissionCapabilitiesJson: JSON.stringify(defaultCapabilities)
+        }}
+        onFinish={(values) => void onSubmit(values)}
+      >
+        <Form.Item label="应用编码" name="appCode" rules={[{ required: true, message: '请输入应用编码' }]}>
+          <Input placeholder="例如：crm_portal" maxLength={64} />
+        </Form.Item>
+        <Form.Item label="应用名称" name="appName" rules={[{ required: true, message: '请输入应用名称' }]}>
+          <Input placeholder="例如：CRM 管理系统" maxLength={128} />
+        </Form.Item>
+        <Form.Item label="应用类型" name="appType">
+          <Select
+            options={[
+              { value: 'web', label: 'Web 应用' },
+              { value: 'spa', label: '单页应用 SPA' },
+              { value: 'backend', label: '后端服务' },
+              { value: 'saml', label: 'SAML 应用' },
+              { value: 'cas', label: 'CAS 应用' }
+            ]}
+          />
+        </Form.Item>
+        <Form.Item label="协议" name="protocol">
+          <Select
+            options={[
+              { value: 'oidc', label: 'OIDC' },
+              { value: 'oauth2', label: 'OAuth2' },
+              { value: 'saml', label: 'SAML' },
+              { value: 'cas', label: 'CAS' }
+            ]}
+          />
+        </Form.Item>
+        <Form.Item label="权限模式" name="permissionMode">
+          <Select options={modes.map((mode) => ({ value: mode.mode, label: mode.displayName }))} />
+        </Form.Item>
+        <Form.Item label="首页地址" name="homepageUrl">
+          <Input placeholder="https://example.company.com" maxLength={512} />
+        </Form.Item>
+        <Form.Item name="permissionCapabilitiesJson" hidden>
+          <Input />
+        </Form.Item>
+      </Form>
+    </Drawer>
   );
 }
-

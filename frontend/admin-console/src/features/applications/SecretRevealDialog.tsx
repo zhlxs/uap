@@ -1,46 +1,49 @@
-import { Copy, X } from 'lucide-react';
+import { CopyOutlined } from '@ant-design/icons';
+import { Alert, Button, Input, Modal, Space, Typography, message } from 'antd';
 import type { ClientSecret } from './types';
 
 type Props = {
-  secret: ClientSecret;
+  secret: ClientSecret | null;
   onClose: () => void;
 };
 
 export function SecretRevealDialog({ secret, onClose }: Props) {
   return (
-    <div className="drawer-backdrop">
-      <section className="modal" aria-label="Client Secret">
-        <div className="drawer-header">
-          <div>
-            <p className="eyebrow">Secret 只展示一次</p>
-            <h2>保存 Client Secret</h2>
-          </div>
-          <button className="icon-button" type="button" onClick={onClose} aria-label="关闭">
-            <X size={18} />
-          </button>
+    <Modal
+      title="保存 Client Secret"
+      open={Boolean(secret)}
+      onCancel={onClose}
+      footer={[
+        <Button key="close" type="primary" onClick={onClose}>
+          我已保存
+        </Button>
+      ]}
+      width={640}
+      destroyOnClose
+    >
+      <Space direction="vertical" size={16} style={{ width: '100%' }}>
+        <Alert type="warning" showIcon message="Secret 明文只展示一次，关闭后无法再次查看。" />
+        <div>
+          <Typography.Text type="secondary">Client Secret</Typography.Text>
+          <Input
+            readOnly
+            value={secret?.secret}
+            style={{ marginTop: 8 }}
+            addonAfter={
+              <Button
+                type="text"
+                icon={<CopyOutlined />}
+                onClick={() => {
+                  if (secret?.secret) {
+                    void navigator.clipboard.writeText(secret.secret);
+                    void message.success('已复制 Secret');
+                  }
+                }}
+              />
+            }
+          />
         </div>
-
-        <div className="secret-box">
-          <code>{secret.secret}</code>
-          <button
-            className="icon-button"
-            type="button"
-            aria-label="复制 Secret"
-            onClick={() => void navigator.clipboard.writeText(secret.secret)}
-          >
-            <Copy size={18} />
-          </button>
-        </div>
-
-        <p className="warning-text">关闭后将无法再次查看明文 Secret，数据库只保存哈希值。</p>
-
-        <div className="drawer-actions">
-          <button className="primary-action" type="button" onClick={onClose}>
-            我已保存
-          </button>
-        </div>
-      </section>
-    </div>
+      </Space>
+    </Modal>
   );
 }
-
