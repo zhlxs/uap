@@ -102,7 +102,7 @@ export function ApplicationList() {
     try {
       setOauthClients(await listOAuthClients(applicationId));
     } catch (exception) {
-      setError(exception instanceof Error ? exception.message : '加载 OIDC Client 失败');
+      setError(exception instanceof Error ? exception.message : '加载登录接入配置失败');
     } finally {
       setClientLoading(false);
     }
@@ -171,9 +171,9 @@ export function ApplicationList() {
       setShowClientCreate(false);
       setSecret(createdSecret);
       await refreshOAuthClients(selected.id);
-      void message.success('OIDC Client 创建成功');
+      void message.success('登录接入配置创建成功');
     } catch (exception) {
-      setError(exception instanceof Error ? exception.message : '创建 OIDC Client 失败');
+      setError(exception instanceof Error ? exception.message : '创建登录接入配置失败');
     } finally {
       setBusy(false);
     }
@@ -356,7 +356,7 @@ export function ApplicationList() {
                         {selected.status === 'active' ? '禁用应用' : '启用应用'}
                       </Button>
                       <Button type="primary" icon={<KeyOutlined />} onClick={() => setShowClientCreate(true)}>
-                        创建 OIDC Client
+                        新增登录接入
                       </Button>
                     </Space>
                   </Space>
@@ -364,12 +364,12 @@ export function ApplicationList() {
               },
               {
                 key: 'clients',
-                label: `OIDC Client (${oauthClients.length})`,
+                label: `登录接入配置 (${oauthClients.length})`,
                 children: (
                   <List<OAuthClient>
                     loading={clientLoading}
                     dataSource={oauthClients}
-                    locale={{ emptyText: <Empty description="暂无 OIDC Client" /> }}
+                    locale={{ emptyText: <Empty description="暂无登录接入配置" /> }}
                     renderItem={(client) => (
                       <List.Item
                         actions={[
@@ -377,9 +377,9 @@ export function ApplicationList() {
                             key="copy"
                             type="link"
                             icon={<CopyOutlined />}
-                            onClick={() => void copyText(client.clientId, '已复制 Client ID')}
+                            onClick={() => void copyText(client.clientId, '已复制接入标识')}
                           >
-                            复制 Client ID
+                            复制接入标识
                           </Button>
                         ]}
                       >
@@ -387,12 +387,13 @@ export function ApplicationList() {
                           title={
                             <Space>
                               <Typography.Text strong>{client.clientName}</Typography.Text>
+                              <Tag color="blue">OIDC</Tag>
                               <Tag color={statusMap[client.status]?.color}>{statusMap[client.status]?.text ?? client.status}</Tag>
                             </Space>
                           }
                           description={
                             <Space direction="vertical" size={6}>
-                              <Typography.Text copyable>{client.clientId}</Typography.Text>
+                              <Typography.Text copyable>接入标识：{client.clientId}</Typography.Text>
                               <Space wrap>
                                 {client.scopes.map((scope) => (
                                   <Tag key={scope}>{scope}</Tag>
@@ -430,7 +431,7 @@ export function ApplicationList() {
                     <Descriptions.Item label="授权端点">{`${issuer}/oauth2/authorize`}</Descriptions.Item>
                     <Descriptions.Item label="Token 端点">{`${issuer}/oauth2/token`}</Descriptions.Item>
                     <Descriptions.Item label="JWKS">{`${issuer}/oauth2/jwks`}</Descriptions.Item>
-                    <Descriptions.Item label="默认 Scope">openid profile email</Descriptions.Item>
+                    <Descriptions.Item label="默认授权范围">openid profile email</Descriptions.Item>
                   </Descriptions>
                 )
               }

@@ -10,7 +10,7 @@ type Props = {
 export function SecretRevealDialog({ secret, onClose }: Props) {
   return (
     <Modal
-      title="保存 Client Secret"
+      title="保存接入密钥"
       open={Boolean(secret)}
       onCancel={onClose}
       footer={[
@@ -22,9 +22,9 @@ export function SecretRevealDialog({ secret, onClose }: Props) {
       destroyOnClose
     >
       <Space direction="vertical" size={16} style={{ width: '100%' }}>
-        <Alert type="warning" showIcon message="Secret 明文只展示一次，关闭后无法再次查看。" />
+        <Alert type="warning" showIcon message="接入密钥明文只展示一次，关闭后无法再次查看。" />
         <div>
-          <Typography.Text type="secondary">Client Secret</Typography.Text>
+          <Typography.Text type="secondary">接入密钥（Client Secret）</Typography.Text>
           <Input
             readOnly
             value={secret?.secret}
@@ -36,7 +36,7 @@ export function SecretRevealDialog({ secret, onClose }: Props) {
                 onClick={() => {
                   if (secret?.secret) {
                     void navigator.clipboard.writeText(secret.secret);
-                    void message.success('已复制 Secret');
+                    void message.success('已复制接入密钥');
                   }
                 }}
               />

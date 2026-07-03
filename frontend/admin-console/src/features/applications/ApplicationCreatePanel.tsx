@@ -44,7 +44,7 @@ export function ApplicationCreatePanel({ modes, open, busy, onClose, onSubmit }:
       }
     >
       <Typography.Paragraph type="secondary">
-        应用是业务系统接入 AegisID 的管理单元，创建后再配置 OIDC Client、回调地址和授权范围。
+        应用是业务系统接入 AegisID 的管理单元，创建后再配置登录接入、回调地址和授权范围。
       </Typography.Paragraph>
 
       <Form<ApplicationCreateInput>
