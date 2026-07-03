@@ -1,0 +1,13 @@
+server:
+  port: 9100
+
+spring:
+  application:
+    name: aegisid-admin-api
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+

@@ -1,0 +1,13 @@
+server:
+  port: 9200
+
+spring:
+  application:
+    name: aegisid-worker
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
