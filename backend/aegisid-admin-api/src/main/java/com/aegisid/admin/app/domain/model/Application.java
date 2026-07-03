@@ -10,9 +10,24 @@ public record Application(
         String protocol,
         String homepageUrl,
         String permissionMode,
+        String permissionCapabilitiesJson,
         String status,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {
+    public Application withStatus(String nextStatus, LocalDateTime updatedAt) {
+        return new Application(
+                id,
+                appCode,
+                appName,
+                appType,
+                protocol,
+                homepageUrl,
+                permissionMode,
+                permissionCapabilitiesJson,
+                nextStatus,
+                createdAt,
+                updatedAt
+        );
+    }
 }
-

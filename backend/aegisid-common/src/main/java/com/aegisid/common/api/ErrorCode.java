@@ -7,6 +7,8 @@ public enum ErrorCode {
     FORBIDDEN("FORBIDDEN", "Forbidden"),
     RESOURCE_NOT_FOUND("RESOURCE_NOT_FOUND", "Resource not found"),
     RESOURCE_CONFLICT("RESOURCE_CONFLICT", "Resource conflict"),
+    INVALID_REDIRECT_URI("INVALID_REDIRECT_URI", "Invalid redirect uri"),
+    INVALID_PERMISSION_MODE("INVALID_PERMISSION_MODE", "Invalid permission mode"),
     INTERNAL_ERROR("INTERNAL_ERROR", "Internal server error");
 
     private final String code;
@@ -25,4 +27,3 @@ public enum ErrorCode {
         return message;
     }
 }
-

@@ -7,16 +7,19 @@ import com.aegisid.admin.app.infrastructure.persistence.mapper.ApplicationMapper
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import java.util.List;
 import java.util.Optional;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Repository;
 
 @Repository
-@Profile("db")
 public class MybatisApplicationRepository implements ApplicationRepository {
     private final ApplicationMapper applicationMapper;
 
     public MybatisApplicationRepository(ApplicationMapper applicationMapper) {
         this.applicationMapper = applicationMapper;
+    }
+
+    @Override
+    public Optional<Application> findById(String id) {
+        return Optional.ofNullable(applicationMapper.selectById(id)).map(this::toDomain);
     }
 
     @Override
@@ -42,6 +45,13 @@ public class MybatisApplicationRepository implements ApplicationRepository {
         return toDomain(entity);
     }
 
+    @Override
+    public Application update(Application application) {
+        ApplicationEntity entity = toEntity(application);
+        applicationMapper.updateById(entity);
+        return toDomain(entity);
+    }
+
     private Application toDomain(ApplicationEntity entity) {
         return new Application(
                 entity.getId(),
@@ -51,6 +61,7 @@ public class MybatisApplicationRepository implements ApplicationRepository {
                 entity.getProtocol(),
                 entity.getHomepageUrl(),
                 entity.getPermissionMode(),
+                entity.getPermissionCapabilitiesJson(),
                 entity.getStatus(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt()
@@ -66,10 +77,10 @@ public class MybatisApplicationRepository implements ApplicationRepository {
         entity.setProtocol(application.protocol());
         entity.setHomepageUrl(application.homepageUrl());
         entity.setPermissionMode(application.permissionMode());
+        entity.setPermissionCapabilitiesJson(application.permissionCapabilitiesJson());
         entity.setStatus(application.status());
         entity.setCreatedAt(application.createdAt());
         entity.setUpdatedAt(application.updatedAt());
         return entity;
     }
 }
-

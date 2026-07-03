@@ -9,7 +9,7 @@ public record CreateApplicationRequest(
         @NotBlank @Size(max = 32) String appType,
         @NotBlank @Size(max = 32) String protocol,
         @Size(max = 512) String homepageUrl,
-        @NotBlank @Size(max = 32) String permissionMode
+        @NotBlank @Size(max = 32) String permissionMode,
+        @Size(max = 2048) String permissionCapabilitiesJson
 ) {
 }
-
