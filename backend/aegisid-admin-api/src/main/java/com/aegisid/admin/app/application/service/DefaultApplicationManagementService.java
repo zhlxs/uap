@@ -6,18 +6,20 @@ import com.aegisid.admin.app.application.query.CreatedClientSecret;
 import com.aegisid.admin.app.domain.model.Application;
 import com.aegisid.admin.app.domain.model.ClientSecret;
 import com.aegisid.admin.app.domain.model.OAuthClient;
+import com.aegisid.admin.app.domain.model.PermissionMode;
 import com.aegisid.admin.app.domain.repository.ApplicationRepository;
 import com.aegisid.admin.app.domain.repository.ClientSecretRepository;
 import com.aegisid.admin.app.domain.repository.OAuthClientRepository;
 import com.aegisid.common.api.ErrorCode;
+import com.aegisid.common.domain.RecordStatus;
 import com.aegisid.common.exception.BusinessException;
+import com.aegisid.common.security.SecurityConstants;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -26,11 +28,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class DefaultApplicationManagementService implements ApplicationManagementService {
-    private static final Set<String> PERMISSION_MODES = Set.of("sso_only", "delegated", "centralized", "hybrid");
-    private static final String STATUS_DRAFT = "draft";
-    private static final String STATUS_ACTIVE = "active";
-    private static final String STATUS_DISABLED = "disabled";
     private static final int SECRET_BYTES = 32;
+    private static final int SECRET_HINT_LENGTH = 8;
 
     private final ApplicationRepository applicationRepository;
     private final OAuthClientRepository oauthClientRepository;
@@ -67,7 +66,7 @@ public class DefaultApplicationManagementService implements ApplicationManagemen
                 command.homepageUrl(),
                 command.permissionMode(),
                 command.permissionCapabilitiesJson(),
-                STATUS_DRAFT,
+                RecordStatus.DRAFT,
                 now,
                 now
         );
@@ -89,7 +88,7 @@ public class DefaultApplicationManagementService implements ApplicationManagemen
     @Transactional
     public Application enable(String id) {
         Application application = get(id);
-        Application updated = application.withStatus(STATUS_ACTIVE, LocalDateTime.now());
+        Application updated = application.withStatus(RecordStatus.ACTIVE, LocalDateTime.now());
         return applicationRepository.update(updated);
     }
 
@@ -97,7 +96,7 @@ public class DefaultApplicationManagementService implements ApplicationManagemen
     @Transactional
     public Application disable(String id) {
         Application application = get(id);
-        Application updated = application.withStatus(STATUS_DISABLED, LocalDateTime.now());
+        Application updated = application.withStatus(RecordStatus.DISABLED, LocalDateTime.now());
         return applicationRepository.update(updated);
     }
 
@@ -125,7 +124,7 @@ public class DefaultApplicationManagementService implements ApplicationManagemen
                 command.accessTokenTtlSeconds(),
                 command.refreshTokenTtlSeconds(),
                 command.requirePkce(),
-                STATUS_ACTIVE,
+                RecordStatus.ACTIVE,
                 now,
                 now
         );
@@ -139,7 +138,7 @@ public class DefaultApplicationManagementService implements ApplicationManagemen
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "OAuth client not found"));
         LocalDateTime now = LocalDateTime.now();
         String secret = generateSecret();
-        String secretHint = secret.substring(secret.length() - 8);
+        String secretHint = secret.substring(secret.length() - SECRET_HINT_LENGTH);
         ClientSecret clientSecret = new ClientSecret(
                 newId(),
                 clientId,
@@ -147,7 +146,7 @@ public class DefaultApplicationManagementService implements ApplicationManagemen
                 secretHint,
                 now,
                 null,
-                STATUS_ACTIVE,
+                RecordStatus.ACTIVE,
                 now
         );
         ClientSecret saved = clientSecretRepository.save(clientSecret);
@@ -155,7 +154,7 @@ public class DefaultApplicationManagementService implements ApplicationManagemen
     }
 
     private void validatePermissionMode(String permissionMode) {
-        if (!PERMISSION_MODES.contains(permissionMode)) {
+        if (!PermissionMode.isSupported(permissionMode)) {
             throw new BusinessException(ErrorCode.INVALID_PERMISSION_MODE);
         }
     }
@@ -166,9 +165,11 @@ public class DefaultApplicationManagementService implements ApplicationManagemen
         }
         try {
             URI uri = new URI(redirectUri);
-            boolean isLocalHttp = "http".equalsIgnoreCase(uri.getScheme()) && "localhost".equalsIgnoreCase(uri.getHost());
-            boolean isLoopbackHttp = "http".equalsIgnoreCase(uri.getScheme()) && "127.0.0.1".equals(uri.getHost());
-            boolean isHttps = "https".equalsIgnoreCase(uri.getScheme());
+            boolean isLocalHttp = SecurityConstants.HTTP_SCHEME.equalsIgnoreCase(uri.getScheme())
+                    && SecurityConstants.LOCALHOST.equalsIgnoreCase(uri.getHost());
+            boolean isLoopbackHttp = SecurityConstants.HTTP_SCHEME.equalsIgnoreCase(uri.getScheme())
+                    && SecurityConstants.LOOPBACK_IPV4.equals(uri.getHost());
+            boolean isHttps = SecurityConstants.HTTPS_SCHEME.equalsIgnoreCase(uri.getScheme());
             if (!isHttps && !isLocalHttp && !isLoopbackHttp) {
                 throw new BusinessException(ErrorCode.INVALID_REDIRECT_URI);
             }
@@ -178,17 +179,16 @@ public class DefaultApplicationManagementService implements ApplicationManagemen
     }
 
     private String generateClientId() {
-        return "client_" + UUID.randomUUID().toString().replace("-", "");
+        return SecurityConstants.CLIENT_ID_PREFIX + UUID.randomUUID().toString().replace("-", "");
     }
 
     private String generateSecret() {
         byte[] bytes = new byte[SECRET_BYTES];
         secureRandom.nextBytes(bytes);
-        return "uap_" + Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+        return SecurityConstants.CLIENT_SECRET_PREFIX + Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
     private String newId() {
         return UUID.randomUUID().toString().replace("-", "");
     }
 }
-

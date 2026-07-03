@@ -6,10 +6,11 @@ import com.aegisid.admin.app.application.query.CreatedClientSecret;
 import com.aegisid.admin.app.application.service.ApplicationManagementService;
 import com.aegisid.admin.app.domain.model.Application;
 import com.aegisid.admin.app.domain.model.OAuthClient;
+import com.aegisid.admin.app.domain.model.PermissionMode;
 import com.aegisid.admin.app.interfaces.request.CreateApplicationRequest;
 import com.aegisid.admin.app.interfaces.request.CreateOAuthClientRequest;
-import com.aegisid.admin.app.interfaces.response.ApplicationResponse;
 import com.aegisid.admin.app.interfaces.response.ApplicationModeResponse;
+import com.aegisid.admin.app.interfaces.response.ApplicationResponse;
 import com.aegisid.admin.app.interfaces.response.CreatedClientSecretResponse;
 import com.aegisid.admin.app.interfaces.response.OAuthClientResponse;
 import com.aegisid.common.api.ApiResponse;
@@ -99,10 +100,11 @@ public class ApplicationController {
     @GetMapping("/permission-modes")
     ApiResponse<List<ApplicationModeResponse>> permissionModes() {
         return ApiResponse.ok(List.of(
-                new ApplicationModeResponse("sso_only", "仅统一登录"),
-                new ApplicationModeResponse("delegated", "业务系统自管权限"),
-                new ApplicationModeResponse("centralized", "UAP 统一托管权限"),
-                new ApplicationModeResponse("hybrid", "混合模式")
+                new ApplicationModeResponse(PermissionMode.SSO_ONLY, "SSO only"),
+                new ApplicationModeResponse(PermissionMode.DELEGATED, "Delegated authorization"),
+                new ApplicationModeResponse(PermissionMode.CENTRALIZED, "Centralized authorization"),
+                new ApplicationModeResponse(PermissionMode.HYBRID, "Hybrid authorization")
         ));
     }
 }
+
