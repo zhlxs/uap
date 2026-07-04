@@ -225,28 +225,32 @@ export function ApplicationList() {
     {
       title: '应用',
       dataIndex: 'appName',
+      ellipsis: true,
       render: (_, record) => (
-        <Space direction="vertical" size={2}>
+        <Typography.Text className="nowrap-cell">
           <Typography.Text strong>{record.appName}</Typography.Text>
-          <Typography.Text type="secondary">{record.appCode}</Typography.Text>
-        </Space>
+          <Typography.Text type="secondary"> · {record.appCode}</Typography.Text>
+        </Typography.Text>
       )
     },
     {
       title: '协议',
       dataIndex: 'protocol',
       width: 110,
+      ellipsis: true,
       render: (value: string) => <Tag color="blue">{value.toUpperCase()}</Tag>
     },
     {
       title: '应用类型',
       dataIndex: 'appType',
-      width: 120
+      width: 120,
+      ellipsis: true
     },
     {
       title: '权限模式',
       dataIndex: 'permissionMode',
       width: 180,
+      ellipsis: true,
       render: (value: string) => <Tag icon={<SafetyCertificateOutlined />}>{modeDisplayName(value, modes)}</Tag>
     },
     {
@@ -262,6 +266,7 @@ export function ApplicationList() {
       title: '更新时间',
       dataIndex: 'updatedAt',
       width: 190,
+      ellipsis: true,
       render: (value: string) => new Date(value).toLocaleString()
     },
     {
@@ -270,11 +275,17 @@ export function ApplicationList() {
       fixed: 'right',
       width: 210,
       render: (_, record) => (
-        <Space>
-          <Button type="link" onClick={() => openDetail(record)}>
+        <Space size={4} className="nowrap-actions">
+          <Button type="link" size="small" onClick={() => openDetail(record)}>
             配置
           </Button>
-          <Button type="link" icon={<PoweroffOutlined />} loading={busy && selected?.id === record.id} onClick={() => void toggleStatus(record)}>
+          <Button
+            type="link"
+            size="small"
+            icon={<PoweroffOutlined />}
+            loading={busy && selected?.id === record.id}
+            onClick={() => void toggleStatus(record)}
+          >
             {record.status === 'active' ? '禁用' : '启用'}
           </Button>
         </Space>
@@ -346,6 +357,7 @@ export function ApplicationList() {
         }
       >
         <Table<Application>
+          className="nowrap-table"
           rowKey="id"
           loading={loading}
           columns={columns}
