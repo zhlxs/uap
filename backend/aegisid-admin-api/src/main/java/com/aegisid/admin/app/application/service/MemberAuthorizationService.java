@@ -202,7 +202,7 @@ public class MemberAuthorizationService {
                 .collect(Collectors.toMap(RoleEntity::getId, role -> role));
         boolean invalid = roleIds.stream().anyMatch(roleId -> !roleMap.containsKey(roleId));
         if (invalid) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "Role does not belong to application");
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "所选角色不属于当前应用");
         }
     }
 }

@@ -9,6 +9,7 @@ import {
   Input,
   List,
   Modal,
+  Popconfirm,
   Space,
   Statistic,
   Tag,
@@ -156,14 +157,22 @@ export function MemberAuthorizationPanel({ application }: Props) {
   }
 
   async function saveRoles() {
+    await saveRoleIds(roleIds, '成员授权已保存');
+  }
+
+  async function revokeRoles() {
+    await saveRoleIds([], '成员授权已取消');
+  }
+
+  async function saveRoleIds(nextRoleIds: string[], successText: string) {
     if (!selectedUserId) {
       return;
     }
     setSaving(true);
     try {
-      await updateUserRoles(application.id, selectedUserId, { roleIds });
+      await updateUserRoles(application.id, selectedUserId, { roleIds: nextRoleIds });
       await refresh(selectedUserId);
-      void message.success('成员授权已保存');
+      void message.success(successText);
     } catch (exception) {
       void message.error(exception instanceof Error ? exception.message : '保存成员授权失败');
     } finally {
@@ -265,9 +274,21 @@ export function MemberAuthorizationPanel({ application }: Props) {
                 {selectedUser ? userDescription(selectedUser) : '选择左侧用户后，在这里勾选应用角色。'}
               </Typography.Text>
             </div>
-            <Button type="primary" disabled={!selectedUser} loading={saving} onClick={() => void saveRoles()}>
-              保存授权
-            </Button>
+            <Space>
+              <Popconfirm
+                title="取消授权"
+                description="确认取消该用户在当前应用下的全部角色授权？"
+                disabled={!selectedUser || roleIds.length === 0}
+                onConfirm={() => void revokeRoles()}
+              >
+                <Button disabled={!selectedUser || roleIds.length === 0} loading={saving}>
+                  取消授权
+                </Button>
+              </Popconfirm>
+              <Button type="primary" disabled={!selectedUser} loading={saving} onClick={() => void saveRoles()}>
+                保存授权
+              </Button>
+            </Space>
           </Flex>
 
           {!selectedUser ? (
