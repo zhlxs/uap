@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AegisID 统一登录</title>
+    <link rel="stylesheet" th:href="@{/assets/auth-login.css(v='20260704')}">
+</head>
+<body>
+<main class="login-shell">
+    <section class="brand-stage" aria-label="AegisID 安全登录能力">
+        <div class="brand-topline">
+            <span class="brand-mark">A</span>
+            <span>AegisID</span>
+        </div>
+        <div class="hero-copy">
+            <p class="eyebrow">统一认证与访问平台</p>
+            <h1>一次登录，连接企业所有可信应用</h1>
+            <p class="hero-desc">面向企业内部系统、合作伙伴门户和管理后台，提供稳定的单点登录、访问控制和审计能力。</p>
+        </div>
+        <div class="identity-board" aria-hidden="true">
+            <div class="pulse-ring ring-one"></div>
+            <div class="pulse-ring ring-two"></div>
+            <div class="access-card card-main">
+                <span class="card-kicker">登录会话</span>
+                <strong>已通过安全校验</strong>
+                <span class="card-bar"></span>
+            </div>
+            <div class="access-card card-app">
+                <span class="dot dot-green"></span>
+                <span>业务系统接入</span>
+            </div>
+            <div class="access-card card-policy">
+                <span class="dot dot-blue"></span>
+                <span>权限策略生效</span>
+            </div>
+            <div class="access-line line-one"></div>
+            <div class="access-line line-two"></div>
+        </div>
+        <div class="stage-footer">
+            <span>账号安全</span>
+            <span>应用接入</span>
+            <span>审计追踪</span>
+        </div>
+    </section>
+
+    <section class="login-panel" aria-label="登录表单">
+        <div class="panel-card">
+            <div class="mobile-brand">
+                <span class="brand-mark">A</span>
+                <span>AegisID</span>
+            </div>
+            <div class="panel-heading">
+                <p class="eyebrow">企业统一登录</p>
+                <h2>登录工作台</h2>
+                <p>使用企业账号访问已授权的应用与管理功能。</p>
+            </div>
+
+            <div class="message message-error" th:if="${param.error}">
+                账号或密码不正确，请核对后重试。
+            </div>
+            <div class="message message-success" th:if="${param.logout}">
+                已安全退出登录。
+            </div>
+
+            <form class="login-form" th:action="@{/login}" method="post">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                <label class="field">
+                    <span>账号</span>
+                    <input name="username" type="text" autocomplete="username" placeholder="请输入企业账号" required autofocus>
+                </label>
+                <label class="field">
+                    <span>密码</span>
+                    <input name="password" type="password" autocomplete="current-password" placeholder="请输入登录密码" required>
+                </label>
+                <div class="form-note">
+                    本次登录将按企业安全策略进行校验与审计。
+                </div>
+                <button class="submit-button" type="submit">
+                    <span>登录</span>
+                    <span class="button-arrow"></span>
+                </button>
+            </form>
+        </div>
+    </section>
+</main>
+<script th:src="@{/assets/auth-login.js(v='20260704')}"></script>
+</body>
+</html>
