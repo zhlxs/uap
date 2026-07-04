@@ -272,3 +272,15 @@ export type DepartmentCreateInput = {
 export type UserRoleUpdateInput = {
   roleIds: string[];
 };
+
+export type AuditEvent = {
+  id: string;
+  eventType: string;
+  actorUserId: string | null;
+  targetType: string | null;
+  targetId: string | null;
+  result: string;
+  errorCode: string | null;
+  detailJson: string | null;
+  createdAt: string;
+};

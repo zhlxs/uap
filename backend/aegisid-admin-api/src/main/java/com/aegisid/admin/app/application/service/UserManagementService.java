@@ -19,7 +19,9 @@ import com.aegisid.common.exception.BusinessException;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.conditions.query.LambdaQueryChainWrapper;
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -31,6 +33,7 @@ import org.springframework.util.StringUtils;
 public class UserManagementService {
     private final ApplicationManagementService applicationManagementService;
     private final DepartmentManagementService departmentManagementService;
+    private final AuditEventService auditEventService;
     private final UserMapper userMapper;
     private final RoleMapper roleMapper;
     private final UserRoleMapper userRoleMapper;
@@ -38,12 +41,14 @@ public class UserManagementService {
     public UserManagementService(
             ApplicationManagementService applicationManagementService,
             DepartmentManagementService departmentManagementService,
+            AuditEventService auditEventService,
             UserMapper userMapper,
             RoleMapper roleMapper,
             UserRoleMapper userRoleMapper
     ) {
         this.applicationManagementService = applicationManagementService;
         this.departmentManagementService = departmentManagementService;
+        this.auditEventService = auditEventService;
         this.userMapper = userMapper;
         this.roleMapper = roleMapper;
         this.userRoleMapper = userRoleMapper;
@@ -87,6 +92,12 @@ public class UserManagementService {
         user.setCreatedAt(now);
         user.setUpdatedAt(now);
         userMapper.insert(user);
+        auditEventService.recordSuccess(
+                "iam.user.create",
+                "iam_user",
+                user.getId(),
+                userDetail(user)
+        );
         return UserResponse.from(user);
     }
 
@@ -100,6 +111,12 @@ public class UserManagementService {
         user.setDepartmentId(normalizeDepartmentId(request.departmentId(), user.getDepartmentId()));
         user.setUpdatedAt(LocalDateTime.now());
         userMapper.updateById(user);
+        auditEventService.recordSuccess(
+                "iam.user.update",
+                "iam_user",
+                user.getId(),
+                userDetail(user)
+        );
         return UserResponse.from(user);
     }
 
@@ -187,6 +204,12 @@ public class UserManagementService {
         user.setStatus(status);
         user.setUpdatedAt(LocalDateTime.now());
         userMapper.updateById(user);
+        auditEventService.recordSuccess(
+                "iam.user.status.update",
+                "iam_user",
+                user.getId(),
+                auditEventService.detail(Map.of("status", status))
+        );
         return UserResponse.from(user);
     }
 
@@ -200,6 +223,13 @@ public class UserManagementService {
         }
         departmentManagementService.getActiveDepartmentEntity(departmentId);
         return departmentId;
+    }
+
+    private String userDetail(UserEntity user) {
+        Map<String, Object> detail = new LinkedHashMap<>();
+        detail.put("displayName", user.getDisplayName());
+        detail.put("departmentId", user.getDepartmentId());
+        return auditEventService.detail(detail);
     }
 
     private String newId() {

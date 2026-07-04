@@ -40,6 +40,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class MemberAuthorizationService {
     private final ApplicationManagementService applicationManagementService;
     private final UserManagementService userManagementService;
+    private final AuditEventService auditEventService;
     private final RoleMapper roleMapper;
     private final PermissionCodeMapper permissionCodeMapper;
     private final ScopeMapper scopeMapper;
@@ -52,6 +53,7 @@ public class MemberAuthorizationService {
     public MemberAuthorizationService(
             ApplicationManagementService applicationManagementService,
             UserManagementService userManagementService,
+            AuditEventService auditEventService,
             RoleMapper roleMapper,
             PermissionCodeMapper permissionCodeMapper,
             ScopeMapper scopeMapper,
@@ -63,6 +65,7 @@ public class MemberAuthorizationService {
     ) {
         this.applicationManagementService = applicationManagementService;
         this.userManagementService = userManagementService;
+        this.auditEventService = auditEventService;
         this.roleMapper = roleMapper;
         this.permissionCodeMapper = permissionCodeMapper;
         this.scopeMapper = scopeMapper;
@@ -124,6 +127,15 @@ public class MemberAuthorizationService {
             entity.setCreatedAt(now);
             userRoleMapper.insert(entity);
         });
+        auditEventService.recordSuccess(
+                "iam.user.role.update",
+                "iam_user",
+                userId,
+                auditEventService.detail(Map.of(
+                        "applicationId", applicationId,
+                        "roleIds", roleIds
+                ))
+        );
         return new UserRoleAssignmentResponse(userId, roleIds);
     }
 

@@ -16,6 +16,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -27,10 +28,16 @@ import org.springframework.util.StringUtils;
 public class DepartmentManagementService {
     private final DepartmentMapper departmentMapper;
     private final UserMapper userMapper;
+    private final AuditEventService auditEventService;
 
-    public DepartmentManagementService(DepartmentMapper departmentMapper, UserMapper userMapper) {
+    public DepartmentManagementService(
+            DepartmentMapper departmentMapper,
+            UserMapper userMapper,
+            AuditEventService auditEventService
+    ) {
         this.departmentMapper = departmentMapper;
         this.userMapper = userMapper;
+        this.auditEventService = auditEventService;
     }
 
     public List<DepartmentResponse> listDepartments() {
@@ -70,6 +77,12 @@ public class DepartmentManagementService {
         department.setUpdatedAt(now);
         department.setPath(buildPath(parent, department.getId()));
         departmentMapper.insert(department);
+        auditEventService.recordSuccess(
+                "iam.department.create",
+                "iam_department",
+                department.getId(),
+                departmentDetail(department)
+        );
         return DepartmentResponse.from(department);
     }
 
@@ -94,6 +107,12 @@ public class DepartmentManagementService {
         department.setUpdatedAt(LocalDateTime.now());
         departmentMapper.updateById(department);
         syncChildrenPath(oldPath, department.getPath());
+        auditEventService.recordSuccess(
+                "iam.department.update",
+                "iam_department",
+                department.getId(),
+                departmentDetail(department)
+        );
         return DepartmentResponse.from(department);
     }
 
@@ -109,10 +128,16 @@ public class DepartmentManagementService {
 
     @Transactional
     public void deleteDepartment(String departmentId) {
-        getDepartmentEntity(departmentId);
+        DepartmentEntity department = getDepartmentEntity(departmentId);
         assertNoChildren(departmentId);
         assertNoUsers(departmentId);
         departmentMapper.deleteById(departmentId);
+        auditEventService.recordSuccess(
+                "iam.department.delete",
+                "iam_department",
+                department.getId(),
+                departmentDetail(department)
+        );
     }
 
     DepartmentEntity getDepartmentEntity(String departmentId) {
@@ -170,6 +195,12 @@ public class DepartmentManagementService {
         department.setStatus(status);
         department.setUpdatedAt(LocalDateTime.now());
         departmentMapper.updateById(department);
+        auditEventService.recordSuccess(
+                "iam.department.status.update",
+                "iam_department",
+                department.getId(),
+                auditEventService.detail(Map.of("status", status))
+        );
         return DepartmentResponse.from(department);
     }
 
@@ -248,6 +279,15 @@ public class DepartmentManagementService {
 
     private String normalizeBlank(String value) {
         return StringUtils.hasText(value) ? value : null;
+    }
+
+    private String departmentDetail(DepartmentEntity department) {
+        Map<String, Object> detail = new LinkedHashMap<>();
+        detail.put("name", department.getName());
+        detail.put("code", department.getCode());
+        detail.put("parentId", department.getParentId());
+        detail.put("status", department.getStatus());
+        return auditEventService.detail(detail);
     }
 
     private String newId() {

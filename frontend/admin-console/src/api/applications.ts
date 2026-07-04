@@ -6,6 +6,7 @@ import type {
   ApplicationResource,
   ApplicationRole,
   ApplicationScope,
+  AuditEvent,
   ClientSecret,
   Department,
   DepartmentCreateInput,
@@ -224,4 +225,8 @@ export function updateUserRoles(
     method: 'PUT',
     body: JSON.stringify(input)
   });
+}
+
+export function listAuditEvents(limit = 100): Promise<AuditEvent[]> {
+  return request<AuditEvent[]>(`/api/admin/audit-events?limit=${limit}`);
 }

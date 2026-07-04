@@ -13,6 +13,7 @@ import { Avatar, Card, ConfigProvider, Layout, Menu, Space, Tag, Typography, the
 import type { MenuProps } from 'antd';
 import { useState } from 'react';
 import { ApplicationList } from './features/applications/ApplicationList';
+import { AuditLogList } from './features/audit/AuditLogList';
 import { UserList } from './features/identity/UserList';
 
 const { Header, Sider, Content } = Layout;
@@ -36,6 +37,9 @@ function renderContent(activeKey: NavKey) {
   }
   if (activeKey === 'identity') {
     return <UserList />;
+  }
+  if (activeKey === 'audit') {
+    return <AuditLogList />;
   }
   const item = navItems?.find((navItem) => navItem && 'key' in navItem && navItem.key === activeKey);
   return (
