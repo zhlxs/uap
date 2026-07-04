@@ -9,6 +9,7 @@ import type {
   ClientSecret,
   Department,
   DepartmentCreateInput,
+  DepartmentTree,
   OAuthClient,
   OAuthClientCreateInput,
   MemberAuthorization,
@@ -24,6 +25,7 @@ import type {
   User,
   UserCreateInput,
   UserDetail,
+  UserQuery,
   UserRoleAssignment,
   UserRoleUpdateInput
 } from '../features/applications/types';
@@ -129,12 +131,27 @@ export function createUser(input: UserCreateInput): Promise<User> {
   });
 }
 
-export function listUsers(): Promise<User[]> {
-  return request<User[]>('/api/admin/users');
+export function listUsers(query: UserQuery = {}): Promise<User[]> {
+  const params = new URLSearchParams();
+  if (query.departmentId) {
+    params.set('departmentId', query.departmentId);
+  }
+  if (query.status) {
+    params.set('status', query.status);
+  }
+  if (query.keyword) {
+    params.set('keyword', query.keyword);
+  }
+  const queryString = params.toString();
+  return request<User[]>(`/api/admin/users${queryString ? `?${queryString}` : ''}`);
 }
 
 export function listDepartments(): Promise<Department[]> {
   return request<Department[]>('/api/admin/departments');
+}
+
+export function listDepartmentTree(): Promise<DepartmentTree[]> {
+  return request<DepartmentTree[]>('/api/admin/departments/tree');
 }
 
 export function createDepartment(input: DepartmentCreateInput): Promise<Department> {

@@ -46,7 +46,7 @@ import {
   enableDepartment,
   enableUser,
   getUser,
-  listDepartments,
+  listDepartmentTree,
   listUsers,
   lockUser,
   updateDepartment,
@@ -55,6 +55,7 @@ import {
 import type {
   Department,
   DepartmentCreateInput,
+  DepartmentTree,
   User,
   UserCreateInput,
   UserDetail
@@ -74,16 +75,6 @@ function statusTag(statusValue: string) {
 
 function userDescription(user: User, departmentName: string) {
   return [departmentName, user.employeeNo, user.email, user.mobile].filter(Boolean).join(' · ') || '暂无联系方式';
-}
-
-function matchesKeyword(user: User, keyword: string) {
-  const normalized = keyword.trim().toLowerCase();
-  if (!normalized) {
-    return true;
-  }
-  return [user.displayName, user.employeeNo, user.email, user.mobile].some((value) =>
-    (value ?? '').toLowerCase().includes(normalized)
-  );
 }
 
 function matchesDepartment(department: Department, keyword: string) {
@@ -109,6 +100,13 @@ function collectMatchedDepartmentIds(departments: Department[], keyword: string)
     }
   });
   return matchedIds;
+}
+
+function flattenDepartmentTree(tree: DepartmentTree[]): Department[] {
+  return tree.flatMap((department) => {
+    const { children, ...current } = department;
+    return [current, ...flattenDepartmentTree(children)];
+  });
 }
 
 function buildDepartmentTree(departments: Department[], keyword: string): DataNode[] {
@@ -203,9 +201,13 @@ export function UserList() {
     setLoading(true);
     setError(null);
     try {
-      const [userData, departmentData] = await Promise.all([listUsers(), listDepartments()]);
+      const departmentId = selectedDepartmentId === 'all' ? undefined : selectedDepartmentId;
+      const [userData, departmentTreeData] = await Promise.all([
+        listUsers({ departmentId, keyword }),
+        listDepartmentTree()
+      ]);
       setUsers(userData);
-      setDepartments(departmentData);
+      setDepartments(flattenDepartmentTree(departmentTreeData));
       setSelectedDetail((current) => {
         if (!current) {
           return current;
@@ -222,14 +224,7 @@ export function UserList() {
 
   useEffect(() => {
     void refresh();
-  }, []);
-
-  const filteredUsers = useMemo(() => {
-    return users.filter((user) => {
-      const matchedDepartment = selectedDepartmentId === 'all' || user.departmentId === selectedDepartmentId;
-      return matchedDepartment && matchesKeyword(user, keyword);
-    });
-  }, [users, keyword, selectedDepartmentId]);
+  }, [selectedDepartmentId, keyword]);
 
   const activeCount = useMemo(() => users.filter((user) => user.status === 'active').length, [users]);
   const disabledCount = useMemo(() => users.filter((user) => user.status === 'disabled').length, [users]);
@@ -596,7 +591,7 @@ export function UserList() {
               rowKey="id"
               loading={loading}
               columns={columns}
-              dataSource={filteredUsers}
+              dataSource={users}
               locale={{ emptyText: <Empty description="暂无用户，请先新增用户" /> }}
               scroll={{ x: 1280 }}
               pagination={{ pageSize: 10, showSizeChanger: false }}

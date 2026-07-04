@@ -4,6 +4,7 @@ import com.aegisid.admin.app.application.service.DepartmentManagementService;
 import com.aegisid.admin.app.interfaces.request.CreateDepartmentRequest;
 import com.aegisid.admin.app.interfaces.request.UpdateDepartmentRequest;
 import com.aegisid.admin.app.interfaces.response.DepartmentResponse;
+import com.aegisid.admin.app.interfaces.response.DepartmentTreeResponse;
 import com.aegisid.common.api.ApiResponse;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -27,6 +28,11 @@ public class DepartmentController {
     @GetMapping
     ApiResponse<List<DepartmentResponse>> list() {
         return ApiResponse.ok(departmentManagementService.listDepartments());
+    }
+
+    @GetMapping("/tree")
+    ApiResponse<List<DepartmentTreeResponse>> tree() {
+        return ApiResponse.ok(departmentManagementService.departmentTree());
     }
 
     @PostMapping

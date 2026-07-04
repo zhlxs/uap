@@ -5,12 +5,17 @@ import com.aegisid.admin.app.infrastructure.persistence.mapper.DepartmentMapper;
 import com.aegisid.admin.app.interfaces.request.CreateDepartmentRequest;
 import com.aegisid.admin.app.interfaces.request.UpdateDepartmentRequest;
 import com.aegisid.admin.app.interfaces.response.DepartmentResponse;
+import com.aegisid.admin.app.interfaces.response.DepartmentTreeResponse;
 import com.aegisid.common.api.ErrorCode;
 import com.aegisid.common.domain.RecordStatus;
 import com.aegisid.common.exception.BusinessException;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,11 +30,21 @@ public class DepartmentManagementService {
     }
 
     public List<DepartmentResponse> listDepartments() {
-        return departmentMapper.selectList(Wrappers.<DepartmentEntity>lambdaQuery()
-                        .orderByAsc(DepartmentEntity::getSortOrder)
-                        .orderByAsc(DepartmentEntity::getCode))
+        return listDepartmentEntities()
                 .stream()
                 .map(DepartmentResponse::from)
+                .toList();
+    }
+
+    public List<DepartmentTreeResponse> departmentTree() {
+        List<DepartmentEntity> departments = listDepartmentEntities();
+        Map<String, List<DepartmentEntity>> childrenMap = new HashMap<>();
+        for (DepartmentEntity department : departments) {
+            childrenMap.computeIfAbsent(department.getParentId(), key -> new ArrayList<>()).add(department);
+        }
+        return childrenMap.getOrDefault(null, List.of())
+                .stream()
+                .map(department -> buildTreeNode(department, childrenMap))
                 .toList();
     }
 
@@ -61,8 +76,10 @@ public class DepartmentManagementService {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "Department parent cannot be itself");
         }
         DepartmentEntity parent = getParent(parentId);
+        assertParentMovable(department, parent);
         assertCodeAvailable(request.code(), departmentId);
 
+        String oldPath = department.getPath();
         department.setParentId(parentId);
         department.setName(request.name());
         department.setCode(request.code());
@@ -70,6 +87,7 @@ public class DepartmentManagementService {
         department.setPath(buildPath(parent, department.getId()));
         department.setUpdatedAt(LocalDateTime.now());
         departmentMapper.updateById(department);
+        syncChildrenPath(oldPath, department.getPath());
         return DepartmentResponse.from(department);
     }
 
@@ -89,6 +107,42 @@ public class DepartmentManagementService {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Department not found");
         }
         return department;
+    }
+
+    List<String> collectDepartmentAndChildrenIds(String departmentId) {
+        if (!StringUtils.hasText(departmentId)) {
+            return List.of();
+        }
+        DepartmentEntity department = getDepartmentEntity(departmentId);
+        String pathPrefix = department.getPath() + "/";
+        List<String> ids = new ArrayList<>();
+        ids.add(department.getId());
+        departmentMapper.selectList(Wrappers.<DepartmentEntity>lambdaQuery()
+                        .likeRight(DepartmentEntity::getPath, pathPrefix)
+                        .orderByAsc(DepartmentEntity::getSortOrder)
+                        .orderByAsc(DepartmentEntity::getCode))
+                .forEach(child -> ids.add(child.getId()));
+        return ids;
+    }
+
+    private List<DepartmentEntity> listDepartmentEntities() {
+        return departmentMapper.selectList(Wrappers.<DepartmentEntity>lambdaQuery()
+                .orderByAsc(DepartmentEntity::getSortOrder)
+                .orderByAsc(DepartmentEntity::getCode));
+    }
+
+    private DepartmentTreeResponse buildTreeNode(
+            DepartmentEntity department,
+            Map<String, List<DepartmentEntity>> childrenMap
+    ) {
+        List<DepartmentTreeResponse> children = childrenMap.getOrDefault(department.getId(), List.of())
+                .stream()
+                .sorted(Comparator
+                        .comparing(DepartmentEntity::getSortOrder, Comparator.nullsLast(Integer::compareTo))
+                        .thenComparing(DepartmentEntity::getCode, Comparator.nullsLast(String::compareTo)))
+                .map(child -> buildTreeNode(child, childrenMap))
+                .toList();
+        return DepartmentTreeResponse.from(department, children);
     }
 
     private DepartmentResponse updateDepartmentStatus(String departmentId, String status) {
@@ -112,6 +166,30 @@ public class DepartmentManagementService {
                 .ne(StringUtils.hasText(excludeId), DepartmentEntity::getId, excludeId));
         if (count != null && count > 0) {
             throw new BusinessException(ErrorCode.RESOURCE_CONFLICT, "Department code already exists");
+        }
+    }
+
+    private void assertParentMovable(DepartmentEntity department, DepartmentEntity parent) {
+        if (parent == null) {
+            return;
+        }
+        String childPath = parent.getPath();
+        if (StringUtils.hasText(childPath) && childPath.startsWith(department.getPath() + "/")) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "Department cannot move under its child");
+        }
+    }
+
+    private void syncChildrenPath(String oldPath, String newPath) {
+        if (!StringUtils.hasText(oldPath) || oldPath.equals(newPath)) {
+            return;
+        }
+        List<DepartmentEntity> children = departmentMapper.selectList(Wrappers.<DepartmentEntity>lambdaQuery()
+                .likeRight(DepartmentEntity::getPath, oldPath + "/"));
+        LocalDateTime now = LocalDateTime.now();
+        for (DepartmentEntity child : children) {
+            child.setPath(newPath + child.getPath().substring(oldPath.length()));
+            child.setUpdatedAt(now);
+            departmentMapper.updateById(child);
         }
     }
 

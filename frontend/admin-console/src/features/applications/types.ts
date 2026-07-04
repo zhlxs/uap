@@ -213,6 +213,10 @@ export type Department = {
   updatedAt: string;
 };
 
+export type DepartmentTree = Department & {
+  children: DepartmentTree[];
+};
+
 export type UserApplicationAuthorization = {
   applicationId: string;
   appCode: string;
@@ -250,6 +254,12 @@ export type UserCreateInput = {
   email?: string;
   mobile?: string;
   departmentId?: string;
+};
+
+export type UserQuery = {
+  departmentId?: string;
+  status?: string;
+  keyword?: string;
 };
 
 export type DepartmentCreateInput = {

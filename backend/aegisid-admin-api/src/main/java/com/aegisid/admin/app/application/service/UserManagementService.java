@@ -17,6 +17,7 @@ import com.aegisid.common.api.ErrorCode;
 import com.aegisid.common.domain.RecordStatus;
 import com.aegisid.common.exception.BusinessException;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.extension.conditions.query.LambdaQueryChainWrapper;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
@@ -50,6 +51,12 @@ public class UserManagementService {
 
     public List<UserResponse> listUsers() {
         return listUserEntities().stream().map(UserResponse::from).toList();
+    }
+
+    public List<UserResponse> searchUsers(String departmentId, String status, String keyword) {
+        return searchUserEntities(departmentId, status, keyword).stream()
+                .map(UserResponse::from)
+                .toList();
     }
 
     public UserDetailResponse getUser(String userId) {
@@ -114,6 +121,26 @@ public class UserManagementService {
     List<UserEntity> listUserEntities() {
         return userMapper.selectList(Wrappers.<UserEntity>lambdaQuery()
                 .orderByAsc(UserEntity::getDisplayName));
+    }
+
+    private List<UserEntity> searchUserEntities(String departmentId, String status, String keyword) {
+        List<String> departmentIds = StringUtils.hasText(departmentId)
+                ? departmentManagementService.collectDepartmentAndChildrenIds(departmentId)
+                : List.of();
+        String normalizedKeyword = StringUtils.hasText(keyword) ? keyword.trim() : null;
+        return new LambdaQueryChainWrapper<>(userMapper)
+                .in(!departmentIds.isEmpty(), UserEntity::getDepartmentId, departmentIds)
+                .eq(StringUtils.hasText(status), UserEntity::getStatus, status)
+                .and(StringUtils.hasText(normalizedKeyword), query -> query
+                        .like(UserEntity::getDisplayName, normalizedKeyword)
+                        .or()
+                        .like(UserEntity::getEmployeeNo, normalizedKeyword)
+                        .or()
+                        .like(UserEntity::getEmail, normalizedKeyword)
+                        .or()
+                        .like(UserEntity::getMobile, normalizedKeyword))
+                .orderByAsc(UserEntity::getDisplayName)
+                .list();
     }
 
     UserEntity getUserEntity(String userId) {
