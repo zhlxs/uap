@@ -85,6 +85,12 @@ export function clearTokens(): void {
   localStorage.removeItem(TOKEN_STORAGE_KEY);
 }
 
+export function redirectToLogout(): void {
+  clearTokens();
+  const params = new URLSearchParams({ redirect_uri: window.location.origin });
+  window.location.assign(`${AUTH_BASE_URL}/sso/logout?${params.toString()}`);
+}
+
 export async function redirectToLogin(): Promise<void> {
   const state = randomString();
   const verifier = randomString();

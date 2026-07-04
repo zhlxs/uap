@@ -70,6 +70,7 @@ public class AuthorizationServerConfig {
                 .cors(Customizer.withDefaults())
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/login", "/assets/**", "/actuator/health", "/api/public/**").permitAll()
+                        .requestMatchers("/sso/logout").permitAll()
                         .anyRequest().authenticated())
                 .formLogin(formLogin -> formLogin
                         .loginPage("/login")

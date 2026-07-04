@@ -12,7 +12,9 @@ import {
 import { Avatar, Button, Card, ConfigProvider, Layout, Menu, Result, Space, Spin, Tag, Typography, theme } from 'antd';
 import type { MenuProps } from 'antd';
 import { useEffect, useState } from 'react';
-import { clearTokens, getCurrentUser, getStoredTokens, handleLoginCallback, redirectToLogin } from './auth/session';
+import { getStoredTokens, handleLoginCallback, redirectToLogin, redirectToLogout } from './auth/session';
+import { getCurrentUserProfile } from './api/profile';
+import type { CurrentUserProfile } from './api/profile';
 import { ApplicationList } from './features/applications/ApplicationList';
 import { AuditLogList } from './features/audit/AuditLogList';
 import { UserList } from './features/identity/UserList';
@@ -59,6 +61,7 @@ export function App() {
   const [activeKey, setActiveKey] = useState<NavKey>('applications');
   const [authStatus, setAuthStatus] = useState<'checking' | 'authenticated' | 'error'>('checking');
   const [authError, setAuthError] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<CurrentUserProfile | null>(null);
 
   useEffect(() => {
     async function bootstrapAuth() {
@@ -67,6 +70,7 @@ export function App() {
           await handleLoginCallback();
         }
         if (getStoredTokens()) {
+          setCurrentUser(await getCurrentUserProfile());
           setAuthStatus('authenticated');
           return;
         }
@@ -80,11 +84,8 @@ export function App() {
     void bootstrapAuth();
   }, []);
 
-  const currentUser = getCurrentUser();
-
   function logout() {
-    clearTokens();
-    void redirectToLogin();
+    redirectToLogout();
   }
 
   if (authStatus === 'checking') {
@@ -158,7 +159,7 @@ export function App() {
               <Tag color="processing">开发环境</Tag>
             </div>
             <Space size={14}>
-              <Typography.Text type="secondary">租户：默认组织</Typography.Text>
+              <Typography.Text type="secondary">租户：{currentUser?.tenantName ?? '默认组织'}</Typography.Text>
               <Typography.Text>{currentUser?.username ?? 'admin'}</Typography.Text>
               <Avatar style={{ backgroundColor: '#1f6f64' }}>
                 {(currentUser?.username ?? 'AD').slice(0, 2).toUpperCase()}
