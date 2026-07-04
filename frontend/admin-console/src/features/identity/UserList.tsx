@@ -300,13 +300,6 @@ export function UserList() {
         </Space>
       </Flex>
 
-      <Alert
-        type="info"
-        showIcon
-        message="用户中心"
-        description="统一维护企业用户基础信息、账号状态和应用授权关系。禁用用于离职、停用等管理场景；锁定用于异常登录、风险处置等安全场景。"
-      />
-
       {error && <Alert type="error" showIcon message={error} />}
 
       <Row gutter={[16, 16]}>
