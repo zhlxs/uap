@@ -1,7 +1,10 @@
 import {
   ApartmentOutlined,
+  BranchesOutlined,
   EditOutlined,
   EyeOutlined,
+  FolderOpenOutlined,
+  FolderOutlined,
   LockOutlined,
   PlusOutlined,
   ReloadOutlined,
@@ -94,16 +97,55 @@ function matchesKeyword(user: User, keyword: string) {
   );
 }
 
-function buildDepartmentTree(departments: Department[]): DataNode[] {
-  const nodeMap = new Map<string, DataNode>();
+function matchesDepartment(department: Department, keyword: string) {
+  const normalized = keyword.trim().toLowerCase();
+  if (!normalized) {
+    return true;
+  }
+  return [department.name, department.code].some((value) => value.toLowerCase().includes(normalized));
+}
+
+function collectMatchedDepartmentIds(departments: Department[], keyword: string) {
+  const matchedIds = new Set<string>();
+  const departmentMap = new Map(departments.map((department) => [department.id, department]));
   departments.forEach((department) => {
+    if (!matchesDepartment(department, keyword)) {
+      return;
+    }
+    matchedIds.add(department.id);
+    let parentId = department.parentId;
+    while (parentId) {
+      matchedIds.add(parentId);
+      parentId = departmentMap.get(parentId)?.parentId ?? null;
+    }
+  });
+  return matchedIds;
+}
+
+function buildDepartmentTree(
+  departments: Department[],
+  userCountMap: Map<string, number>,
+  keyword: string
+): DataNode[] {
+  const nodeMap = new Map<string, DataNode>();
+  const visibleIds = collectMatchedDepartmentIds(departments, keyword);
+  departments.forEach((department) => {
+    if (!visibleIds.has(department.id)) {
+      return;
+    }
     nodeMap.set(department.id, {
       key: department.id,
       title: (
-        <Space size={6}>
-          <Typography.Text>{department.name}</Typography.Text>
-          {department.status !== 'active' && <Tag>禁用</Tag>}
-        </Space>
+        <div className="org-tree-node">
+          <span className="org-tree-node-main">
+            <span className="org-tree-node-name">{department.name}</span>
+            <span className="org-tree-node-code">{department.code}</span>
+          </span>
+          <span className="org-tree-node-meta">
+            {department.status !== 'active' && <Tag>禁用</Tag>}
+            <Tag bordered={false}>{userCountMap.get(department.id) ?? 0}</Tag>
+          </span>
+        </div>
       ),
       children: []
     });
@@ -125,7 +167,15 @@ function buildDepartmentTree(departments: Department[]): DataNode[] {
   return [
     {
       key: 'all',
-      title: '全部部门',
+      title: (
+        <div className="org-tree-node">
+          <span className="org-tree-node-main">
+            <span className="org-tree-node-name">全部部门</span>
+            <span className="org-tree-node-code">ALL</span>
+          </span>
+          <Tag bordered={false}>{departments.length}</Tag>
+        </div>
+      ),
       children: roots
     }
   ];
@@ -144,6 +194,7 @@ export function UserList() {
   const [showDepartmentDrawer, setShowDepartmentDrawer] = useState(false);
   const [editingDepartment, setEditingDepartment] = useState<Department | null>(null);
   const [keyword, setKeyword] = useState('');
+  const [departmentKeyword, setDepartmentKeyword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [createForm] = Form.useForm<UserCreateInput>();
   const [editForm] = Form.useForm<UserCreateInput>();
@@ -165,7 +216,20 @@ export function UserList() {
     return departments.find((department) => department.id === selectedDepartmentId) ?? null;
   }, [departments, selectedDepartmentId]);
 
-  const departmentTree = useMemo(() => buildDepartmentTree(departments), [departments]);
+  const userCountMap = useMemo(() => {
+    const counts = new Map<string, number>();
+    users.forEach((user) => {
+      if (!user.departmentId) {
+        return;
+      }
+      counts.set(user.departmentId, (counts.get(user.departmentId) ?? 0) + 1);
+    });
+    return counts;
+  }, [users]);
+
+  const departmentTree = useMemo(() => {
+    return buildDepartmentTree(departments, userCountMap, departmentKeyword);
+  }, [departments, userCountMap, departmentKeyword]);
 
   async function refresh() {
     setLoading(true);
@@ -496,36 +560,67 @@ export function UserList() {
       <Row gutter={[16, 16]} align="top">
         <Col xs={24} lg={6}>
           <Card
+            className="org-panel"
             title="组织架构"
             extra={
-              <Button type="link" size="small" icon={<PlusOutlined />} onClick={openDepartmentCreate}>
+              <Button type="primary" size="small" icon={<PlusOutlined />} onClick={openDepartmentCreate}>
                 新增
               </Button>
             }
           >
-            <Tree
-              blockNode
-              defaultExpandAll
-              selectedKeys={[selectedDepartmentId]}
-              treeData={departmentTree}
-              onSelect={(keys) => setSelectedDepartmentId(String(keys[0] ?? 'all'))}
-            />
-            <Space style={{ marginTop: 16 }}>
-              <Button size="small" icon={<EditOutlined />} disabled={!selectedDepartment} onClick={openDepartmentEdit}>
-                编辑
-              </Button>
-              {selectedDepartment && (
-                <Button size="small" loading={saving} onClick={() => void updateDepartmentStatus(selectedDepartment)}>
-                  {selectedDepartment.status === 'active' ? '禁用' : '启用'}
-                </Button>
-              )}
+            <Space direction="vertical" size={14} style={{ width: '100%' }}>
+              <Input
+                allowClear
+                prefix={<SearchOutlined />}
+                placeholder="搜索部门名称或编码"
+                value={departmentKeyword}
+                onChange={(event) => setDepartmentKeyword(event.target.value)}
+              />
+              <div className="org-summary">
+                <div>
+                  <Typography.Text type="secondary">部门总数</Typography.Text>
+                  <Typography.Title level={4}>{departments.length}</Typography.Title>
+                </div>
+                <div>
+                  <Typography.Text type="secondary">当前范围</Typography.Text>
+                  <Typography.Title level={4}>{filteredUsers.length}</Typography.Title>
+                </div>
+              </div>
+              <Tree
+                blockNode
+                showIcon
+                defaultExpandAll
+                className="org-tree"
+                selectedKeys={[selectedDepartmentId]}
+                treeData={departmentTree}
+                switcherIcon={<BranchesOutlined />}
+                icon={({ expanded }) => (expanded ? <FolderOpenOutlined /> : <FolderOutlined />)}
+                onSelect={(keys) => setSelectedDepartmentId(String(keys[0] ?? 'all'))}
+              />
+              <div className="org-current">
+                <Flex align="center" justify="space-between" gap={12}>
+                  <Space direction="vertical" size={2}>
+                    <Typography.Text type="secondary">当前部门</Typography.Text>
+                    <Typography.Text strong>{selectedDepartment?.name ?? '全部部门'}</Typography.Text>
+                  </Space>
+                  {selectedDepartment ? departmentStatusTag(selectedDepartment.status) : <Tag color="processing">全量</Tag>}
+                </Flex>
+                <Descriptions size="small" column={1}>
+                  <Descriptions.Item label="部门编码">{selectedDepartment?.code ?? 'ALL'}</Descriptions.Item>
+                  <Descriptions.Item label="直属用户">{selectedDepartment ? userCountMap.get(selectedDepartment.id) ?? 0 : users.length}</Descriptions.Item>
+                </Descriptions>
+                <Space>
+                  <Button size="small" icon={<EditOutlined />} disabled={!selectedDepartment} onClick={openDepartmentEdit}>
+                    编辑部门
+                  </Button>
+                  {selectedDepartment && (
+                    <Button size="small" loading={saving} onClick={() => void updateDepartmentStatus(selectedDepartment)}>
+                      {selectedDepartment.status === 'active' ? '禁用' : '启用'}
+                    </Button>
+                  )}
+                </Space>
+              </div>
             </Space>
-            {selectedDepartment && (
-              <Descriptions size="small" column={1} style={{ marginTop: 16 }}>
-                <Descriptions.Item label="部门编码">{selectedDepartment.code}</Descriptions.Item>
-                <Descriptions.Item label="状态">{departmentStatusTag(selectedDepartment.status)}</Descriptions.Item>
-              </Descriptions>
-            )}
           </Card>
         </Col>
 

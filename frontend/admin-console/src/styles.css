@@ -99,6 +99,117 @@ body {
   text-overflow: ellipsis;
 }
 
+.org-panel .ant-card-body {
+  padding: 16px;
+}
+
+.org-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.org-summary > div {
+  min-width: 0;
+  padding: 12px;
+  background: #f8fafc;
+  border: 1px solid #edf0f4;
+  border-radius: 6px;
+}
+
+.org-summary .ant-typography {
+  margin: 0;
+}
+
+.org-tree {
+  max-height: 420px;
+  overflow: auto;
+  padding: 4px;
+  background: #ffffff;
+  border: 1px solid #edf0f4;
+  border-radius: 6px;
+}
+
+.org-tree .ant-tree-treenode {
+  width: 100%;
+  padding: 2px 0;
+}
+
+.org-tree .ant-tree-node-content-wrapper {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  height: 36px;
+  padding: 0 8px;
+  border-radius: 6px;
+}
+
+.org-tree .ant-tree-node-content-wrapper:hover {
+  background: #f2f6f6;
+}
+
+.org-tree .ant-tree-node-selected {
+  background: #e6f2ef !important;
+  color: #15584f;
+  font-weight: 600;
+}
+
+.org-tree .ant-tree-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.org-tree-node {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  width: 100%;
+}
+
+.org-tree-node-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.org-tree-node-name,
+.org-tree-node-code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.org-tree-node-name {
+  line-height: 18px;
+}
+
+.org-tree-node-code {
+  color: #667085;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+}
+
+.org-tree-node-meta {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 4px;
+}
+
+.org-current {
+  padding: 14px;
+  background: #fbfcfd;
+  border: 1px solid #edf0f4;
+  border-radius: 6px;
+}
+
+.org-current .ant-descriptions {
+  margin: 12px 0;
+}
+
 @media (max-width: 860px) {
   .admin-sider {
     display: none;
