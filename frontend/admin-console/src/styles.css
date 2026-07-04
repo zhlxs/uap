@@ -11,6 +11,14 @@ body {
   min-height: 100vh;
 }
 
+.auth-loading {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  align-content: center;
+  gap: 16px;
+}
+
 .admin-shell {
   min-height: 100vh;
 }

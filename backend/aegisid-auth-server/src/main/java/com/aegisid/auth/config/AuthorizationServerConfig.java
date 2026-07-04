@@ -17,6 +17,7 @@ import org.springframework.core.annotation.Order;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
@@ -37,6 +38,9 @@ import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.util.matcher.MediaTypeRequestMatcher;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 @Configuration
 public class AuthorizationServerConfig {
@@ -47,6 +51,8 @@ public class AuthorizationServerConfig {
         http.getConfigurer(OAuth2AuthorizationServerConfigurer.class)
                 .oidc(Customizer.withDefaults());
         return http
+                .cors(Customizer.withDefaults())
+                .csrf(AbstractHttpConfigurer::disable)
                 .exceptionHandling(exceptions -> exceptions
                         .defaultAuthenticationEntryPointFor(
                                 new LoginUrlAuthenticationEntryPoint("/login"),
@@ -61,6 +67,7 @@ public class AuthorizationServerConfig {
     @Order(2)
     SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http) throws Exception {
         return http
+                .cors(Customizer.withDefaults())
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/login", "/assets/**", "/actuator/health", "/api/public/**").permitAll()
                         .anyRequest().authenticated())
@@ -76,12 +83,17 @@ public class AuthorizationServerConfig {
     RegisteredClientRepository registeredClientRepository(PasswordEncoder passwordEncoder) {
         RegisteredClient adminConsole = RegisteredClient.withId(UUID.randomUUID().toString())
                 .clientId("aegisid-admin-console")
-                .clientSecret(passwordEncoder.encode("change-me"))
-                .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+                .clientAuthenticationMethod(ClientAuthenticationMethod.NONE)
                 .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
                 .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
                 .redirectUri("http://localhost:5173/auth/callback")
+                .redirectUri("http://localhost:5174/auth/callback")
+                .redirectUri("http://127.0.0.1:5173/auth/callback")
+                .redirectUri("http://127.0.0.1:5174/auth/callback")
                 .postLogoutRedirectUri("http://localhost:5173")
+                .postLogoutRedirectUri("http://localhost:5174")
+                .postLogoutRedirectUri("http://127.0.0.1:5173")
+                .postLogoutRedirectUri("http://127.0.0.1:5174")
                 .scope(OidcScopes.OPENID)
                 .scope(OidcScopes.PROFILE)
                 .scope(OidcScopes.EMAIL)
@@ -126,6 +138,23 @@ public class AuthorizationServerConfig {
         return AuthorizationServerSettings.builder()
                 .issuer("http://localhost:9000")
                 .build();
+    }
+
+    @Bean
+    CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.addAllowedOrigin("http://localhost:5173");
+        configuration.addAllowedOrigin("http://localhost:5174");
+        configuration.addAllowedOrigin("http://127.0.0.1:5173");
+        configuration.addAllowedOrigin("http://127.0.0.1:5174");
+        configuration.addAllowedMethod("*");
+        configuration.addAllowedHeader("*");
+        configuration.setAllowCredentials(false);
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/oauth2/token", configuration);
+        source.registerCorsConfiguration("/oauth2/revoke", configuration);
+        source.registerCorsConfiguration("/oauth2/introspect", configuration);
+        return source;
     }
 
     private static RSAKey generateRsa() {

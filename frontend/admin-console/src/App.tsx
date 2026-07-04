@@ -9,9 +9,10 @@ import {
   SafetyCertificateOutlined,
   TeamOutlined
 } from '@ant-design/icons';
-import { Avatar, Card, ConfigProvider, Layout, Menu, Space, Tag, Typography, theme } from 'antd';
+import { Avatar, Button, Card, ConfigProvider, Layout, Menu, Result, Space, Spin, Tag, Typography, theme } from 'antd';
 import type { MenuProps } from 'antd';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { clearTokens, getCurrentUser, getStoredTokens, handleLoginCallback, redirectToLogin } from './auth/session';
 import { ApplicationList } from './features/applications/ApplicationList';
 import { AuditLogList } from './features/audit/AuditLogList';
 import { UserList } from './features/identity/UserList';
@@ -56,6 +57,55 @@ function renderContent(activeKey: NavKey) {
 
 export function App() {
   const [activeKey, setActiveKey] = useState<NavKey>('applications');
+  const [authStatus, setAuthStatus] = useState<'checking' | 'authenticated' | 'error'>('checking');
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function bootstrapAuth() {
+      try {
+        if (window.location.pathname === '/auth/callback') {
+          await handleLoginCallback();
+        }
+        if (getStoredTokens()) {
+          setAuthStatus('authenticated');
+          return;
+        }
+        await redirectToLogin();
+      } catch (error) {
+        setAuthError(error instanceof Error ? error.message : '登录失败');
+        setAuthStatus('error');
+      }
+    }
+
+    void bootstrapAuth();
+  }, []);
+
+  const currentUser = getCurrentUser();
+
+  function logout() {
+    clearTokens();
+    void redirectToLogin();
+  }
+
+  if (authStatus === 'checking') {
+    return (
+      <div className="auth-loading">
+        <Spin size="large" />
+        <Typography.Text type="secondary">正在连接统一认证服务</Typography.Text>
+      </div>
+    );
+  }
+
+  if (authStatus === 'error') {
+    return (
+      <Result
+        status="warning"
+        title="登录未完成"
+        subTitle={authError ?? '请重新登录'}
+        extra={<Button type="primary" onClick={() => void redirectToLogin()}>重新登录</Button>}
+      />
+    );
+  }
 
   return (
     <ConfigProvider
@@ -109,7 +159,11 @@ export function App() {
             </div>
             <Space size={14}>
               <Typography.Text type="secondary">租户：默认组织</Typography.Text>
-              <Avatar style={{ backgroundColor: '#1f6f64' }}>AD</Avatar>
+              <Typography.Text>{currentUser?.username ?? 'admin'}</Typography.Text>
+              <Avatar style={{ backgroundColor: '#1f6f64' }}>
+                {(currentUser?.username ?? 'AD').slice(0, 2).toUpperCase()}
+              </Avatar>
+              <Button size="small" onClick={logout}>退出</Button>
             </Space>
           </Header>
           <Content className="admin-content">{renderContent(activeKey)}</Content>
