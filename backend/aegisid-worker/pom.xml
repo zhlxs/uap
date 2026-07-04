@@ -13,6 +13,10 @@
     <artifactId>aegisid-worker</artifactId>
     <name>AegisID Worker</name>
 
+    <properties>
+        <checkstyle.config.location>${project.parent.basedir}/config/checkstyle/checkstyle.xml</checkstyle.config.location>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>com.aegisid</groupId>

@@ -13,6 +13,10 @@
     <artifactId>aegisid-admin-api</artifactId>
     <name>AegisID Admin API</name>
 
+    <properties>
+        <checkstyle.config.location>${project.parent.basedir}/config/checkstyle/checkstyle.xml</checkstyle.config.location>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>com.aegisid</groupId>

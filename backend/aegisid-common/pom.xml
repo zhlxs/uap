@@ -13,6 +13,10 @@
     <artifactId>aegisid-common</artifactId>
     <name>AegisID Common</name>
 
+    <properties>
+        <checkstyle.config.location>${project.parent.basedir}/config/checkstyle/checkstyle.xml</checkstyle.config.location>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>

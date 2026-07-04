@@ -13,6 +13,10 @@
     <artifactId>aegisid-auth-server</artifactId>
     <name>AegisID Auth Server</name>
 
+    <properties>
+        <checkstyle.config.location>${project.parent.basedir}/config/checkstyle/checkstyle.xml</checkstyle.config.location>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>com.aegisid</groupId>
