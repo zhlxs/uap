@@ -21,6 +21,7 @@ import type {
   ScopeCreateInput,
   User,
   UserCreateInput,
+  UserDetail,
   UserRoleAssignment,
   UserRoleUpdateInput
 } from '../features/applications/types';
@@ -123,6 +124,39 @@ export function createUser(input: UserCreateInput): Promise<User> {
   return request<User>('/api/admin/applications/users', {
     method: 'POST',
     body: JSON.stringify(input)
+  });
+}
+
+export function listUsers(): Promise<User[]> {
+  return request<User[]>('/api/admin/applications/users');
+}
+
+export function getUser(userId: string): Promise<UserDetail> {
+  return request<UserDetail>(`/api/admin/applications/users/${userId}`);
+}
+
+export function updateUser(userId: string, input: UserCreateInput): Promise<User> {
+  return request<User>(`/api/admin/applications/users/${userId}`, {
+    method: 'PUT',
+    body: JSON.stringify(input)
+  });
+}
+
+export function enableUser(userId: string): Promise<User> {
+  return request<User>(`/api/admin/applications/users/${userId}/enable`, {
+    method: 'POST'
+  });
+}
+
+export function disableUser(userId: string): Promise<User> {
+  return request<User>(`/api/admin/applications/users/${userId}/disable`, {
+    method: 'POST'
+  });
+}
+
+export function lockUser(userId: string): Promise<User> {
+  return request<User>(`/api/admin/applications/users/${userId}/lock`, {
+    method: 'POST'
   });
 }
 

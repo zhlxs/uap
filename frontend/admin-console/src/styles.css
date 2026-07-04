@@ -87,6 +87,18 @@ body {
   border-bottom: 1px solid #edf0f4;
 }
 
+.nowrap-table .ant-table-cell,
+.nowrap-cell,
+.nowrap-actions {
+  white-space: nowrap;
+}
+
+.nowrap-cell {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 @media (max-width: 860px) {
   .admin-sider {
     display: none;

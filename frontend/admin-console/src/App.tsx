@@ -9,11 +9,15 @@ import {
   SafetyCertificateOutlined,
   TeamOutlined
 } from '@ant-design/icons';
-import { Avatar, ConfigProvider, Layout, Menu, Space, Tag, Typography, theme } from 'antd';
+import { Avatar, Card, ConfigProvider, Layout, Menu, Space, Tag, Typography, theme } from 'antd';
 import type { MenuProps } from 'antd';
+import { useState } from 'react';
 import { ApplicationList } from './features/applications/ApplicationList';
+import { UserList } from './features/identity/UserList';
 
 const { Header, Sider, Content } = Layout;
+
+type NavKey = 'dashboard' | 'identity' | 'applications' | 'permission' | 'policy' | 'keys' | 'source' | 'audit';
 
 const navItems: MenuProps['items'] = [
   { key: 'dashboard', icon: <DashboardOutlined />, label: '总览' },
@@ -26,7 +30,29 @@ const navItems: MenuProps['items'] = [
   { key: 'audit', icon: <AuditOutlined />, label: '审计日志' }
 ];
 
+function renderContent(activeKey: NavKey) {
+  if (activeKey === 'applications') {
+    return <ApplicationList />;
+  }
+  if (activeKey === 'identity') {
+    return <UserList />;
+  }
+  const item = navItems?.find((navItem) => navItem && 'key' in navItem && navItem.key === activeKey);
+  return (
+    <Card>
+      <Space direction="vertical" size={8}>
+        <Typography.Title level={4} style={{ margin: 0 }}>
+          {String(item && 'label' in item ? item.label : '模块')}
+        </Typography.Title>
+        <Typography.Text type="secondary">该模块正在产品化建设中，当前优先完善应用接入、权限配置和成员授权闭环。</Typography.Text>
+      </Space>
+    </Card>
+  );
+}
+
 export function App() {
+  const [activeKey, setActiveKey] = useState<NavKey>('applications');
+
   return (
     <ConfigProvider
       theme={{
@@ -62,7 +88,13 @@ export function App() {
               <span>统一认证与访问平台</span>
             </div>
           </div>
-          <Menu theme="dark" mode="inline" selectedKeys={['applications']} items={navItems} />
+          <Menu
+            theme="dark"
+            mode="inline"
+            selectedKeys={[activeKey]}
+            items={navItems}
+            onClick={({ key }) => setActiveKey(key as NavKey)}
+          />
         </Sider>
 
         <Layout>
@@ -76,9 +108,7 @@ export function App() {
               <Avatar style={{ backgroundColor: '#1f6f64' }}>AD</Avatar>
             </Space>
           </Header>
-          <Content className="admin-content">
-            <ApplicationList />
-          </Content>
+          <Content className="admin-content">{renderContent(activeKey)}</Content>
         </Layout>
       </Layout>
     </ConfigProvider>

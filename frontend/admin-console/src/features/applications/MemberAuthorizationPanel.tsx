@@ -1,15 +1,41 @@
-import { Alert, Button, Checkbox, Empty, Flex, Form, Input, List, Modal, Space, Tag, Typography, message } from 'antd';
+import {
+  Alert,
+  Button,
+  Card,
+  Checkbox,
+  Empty,
+  Flex,
+  Form,
+  Input,
+  List,
+  Modal,
+  Space,
+  Statistic,
+  Tag,
+  Typography,
+  message
+} from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 import { createUser, getMemberAuthorization, updateUserRoles } from '../../api/applications';
-import type { Application, MemberAuthorization, User, UserCreateInput } from './types';
+import type { Application, ApplicationResource, MemberAuthorization, RoleGrant, User, UserCreateInput } from './types';
 
 type Props = {
   application: Application;
 };
 
+type AuthorizationPreview = {
+  permissionCodeIds: string[];
+  scopeIds: string[];
+  resourceIds: string[];
+};
+
 const emptyAuthorization: MemberAuthorization = {
   users: [],
   roles: [],
+  permissionCodes: [],
+  scopes: [],
+  resources: [],
+  roleGrants: [],
   assignments: []
 };
 
@@ -19,6 +45,32 @@ function includesKeyword(values: Array<string | null | undefined>, keyword: stri
     return true;
   }
   return values.some((value) => (value ?? '').toLowerCase().includes(normalized));
+}
+
+function mergeUnique(values: string[]) {
+  return Array.from(new Set(values));
+}
+
+function userDescription(user: User) {
+  return [user.employeeNo, user.email, user.mobile].filter(Boolean).join(' · ') || '暂无联系方式';
+}
+
+function resourceTypeText(resourceType: string) {
+  const typeMap: Record<string, string> = {
+    menu: '菜单',
+    button: '按钮',
+    api: '接口'
+  };
+  return typeMap[resourceType] ?? resourceType;
+}
+
+function summarizeRoleGrant(roleGrants: RoleGrant[], roleId: string) {
+  return roleGrants.find((grant) => grant.roleId === roleId) ?? {
+    roleId,
+    permissionCodeIds: [],
+    scopeIds: [],
+    resourceIds: []
+  };
 }
 
 export function MemberAuthorizationPanel({ application }: Props) {
@@ -64,6 +116,25 @@ export function MemberAuthorizationPanel({ application }: Props) {
     [authorization.users, selectedUserId]
   );
 
+  const selectedRoles = useMemo(
+    () => authorization.roles.filter((role) => roleIds.includes(role.id)),
+    [authorization.roles, roleIds]
+  );
+
+  const preview = useMemo<AuthorizationPreview>(() => {
+    const grants = roleIds.map((roleId) => summarizeRoleGrant(authorization.roleGrants, roleId));
+    return {
+      permissionCodeIds: mergeUnique(grants.flatMap((grant) => grant.permissionCodeIds)),
+      scopeIds: mergeUnique(grants.flatMap((grant) => grant.scopeIds)),
+      resourceIds: mergeUnique(grants.flatMap((grant) => grant.resourceIds))
+    };
+  }, [authorization.roleGrants, roleIds]);
+
+  const previewResources = useMemo(
+    () => authorization.resources.filter((resource) => preview.resourceIds.includes(resource.id)),
+    [authorization.resources, preview.resourceIds]
+  );
+
   useEffect(() => {
     const assignment = authorization.assignments.find((item) => item.userId === selectedUserId);
     setRoleIds(assignment?.roleIds ?? []);
@@ -100,8 +171,12 @@ export function MemberAuthorizationPanel({ application }: Props) {
     }
   }
 
-  function userDescription(user: User) {
-    return [user.employeeNo, user.email, user.mobile].filter(Boolean).join(' · ') || '暂无联系方式';
+  function renderResource(resource: ApplicationResource) {
+    return (
+      <Tag key={resource.id}>
+        {resource.resourceName} · {resourceTypeText(resource.resourceType)}
+      </Tag>
+    );
   }
 
   return (
@@ -110,7 +185,7 @@ export function MemberAuthorizationPanel({ application }: Props) {
         type="info"
         showIcon
         message="成员授权"
-        description="选择用户后，为该用户勾选当前应用下的角色。用户获得角色后，就继承角色上的资源、Scope 和高级业务权限码。"
+        description="选择用户后，为该用户勾选当前应用下的角色。右侧会实时预览该用户将获得的角色、资源、Scope 和高级业务权限码。"
       />
 
       <Flex justify="space-between" align="center" gap={12} wrap="wrap">
@@ -122,8 +197,22 @@ export function MemberAuthorizationPanel({ application }: Props) {
             刷新
           </Button>
         </Space>
-        <Tag>{`用户 ${authorization.users.length} · 角色 ${authorization.roles.length}`}</Tag>
+        <Space wrap>
+          <Tag>{`用户 ${authorization.users.length}`}</Tag>
+          <Tag>{`角色 ${authorization.roles.length}`}</Tag>
+          <Tag>{`资源 ${authorization.resources.length}`}</Tag>
+          <Tag>{`Scope ${authorization.scopes.length}`}</Tag>
+        </Space>
       </Flex>
+
+      {authorization.roles.length === 0 && (
+        <Alert
+          type="warning"
+          showIcon
+          message="当前应用还没有角色"
+          description="请先到“角色与权限”页签创建应用角色，并为角色绑定资源、Scope 或业务权限码，然后再进行成员授权。"
+        />
+      )}
 
       <Flex gap={16} align="stretch" wrap="wrap">
         <div style={{ flex: '0 0 320px', minWidth: 280 }}>
@@ -137,11 +226,11 @@ export function MemberAuthorizationPanel({ application }: Props) {
             onChange={(event) => setKeyword(event.target.value)}
             style={{ margin: '12px 0' }}
           />
-          <div style={{ maxHeight: 500, overflow: 'auto', border: '1px solid #f0f0f0', borderRadius: 8 }}>
+          <div style={{ maxHeight: 560, overflow: 'auto', border: '1px solid #f0f0f0', borderRadius: 8 }}>
             <List<User>
               loading={loading}
               dataSource={filteredUsers}
-              locale={{ emptyText: <Empty description="没有匹配的用户" /> }}
+              locale={{ emptyText: <Empty description="暂无用户，请先新增用户" /> }}
               renderItem={(user) => (
                 <List.Item
                   onClick={() => setSelectedUserId(user.id)}
@@ -166,7 +255,7 @@ export function MemberAuthorizationPanel({ application }: Props) {
           </div>
         </div>
 
-        <div style={{ flex: '1 1 420px', minWidth: 320 }}>
+        <div style={{ flex: '1 1 520px', minWidth: 320 }}>
           <Flex align="center" justify="space-between" gap={12} wrap="wrap">
             <div>
               <Typography.Title level={5} style={{ marginBottom: 4 }}>
@@ -184,45 +273,99 @@ export function MemberAuthorizationPanel({ application }: Props) {
           {!selectedUser ? (
             <Empty style={{ marginTop: 48 }} description="请选择或新增一个用户" />
           ) : (
-            <section style={{ marginTop: 18 }}>
-              <Flex align="center" justify="space-between" gap={8} wrap="wrap">
-                <div>
-                  <Typography.Text strong>应用角色</Typography.Text>
-                  <Typography.Text type="secondary">
-                    {` 已选 ${roleIds.length} / 共 ${authorization.roles.length}`}
-                  </Typography.Text>
+            <Space direction="vertical" size={16} style={{ width: '100%', marginTop: 18 }}>
+              <section>
+                <Flex align="center" justify="space-between" gap={8} wrap="wrap">
+                  <div>
+                    <Typography.Text strong>应用角色</Typography.Text>
+                    <Typography.Text type="secondary">
+                      {` 已选 ${roleIds.length} / 共 ${authorization.roles.length}`}
+                    </Typography.Text>
+                  </div>
+                  <Space>
+                    <Button
+                      size="small"
+                      onClick={() => setRoleIds(authorization.roles.map((role) => role.id))}
+                      disabled={authorization.roles.length === 0}
+                    >
+                      全选
+                    </Button>
+                    <Button size="small" onClick={() => setRoleIds([])} disabled={roleIds.length === 0}>
+                      清空
+                    </Button>
+                  </Space>
+                </Flex>
+                <Typography.Paragraph type="secondary" style={{ margin: '6px 0 10px' }}>
+                  角色决定该用户能访问哪些菜单、按钮、接口以及授权范围。
+                </Typography.Paragraph>
+                <div style={{ maxHeight: 260, overflow: 'auto', border: '1px solid #f0f0f0', borderRadius: 8, padding: 12 }}>
+                  {authorization.roles.length === 0 ? (
+                    <Empty description="当前应用还没有角色，请先在角色与权限中新增角色" />
+                  ) : (
+                    <Checkbox.Group value={roleIds} onChange={(values) => setRoleIds(values.map(String))} style={{ width: '100%' }}>
+                      <Space direction="vertical" size={10} style={{ width: '100%' }}>
+                        {authorization.roles.map((role) => {
+                          const grant = summarizeRoleGrant(authorization.roleGrants, role.id);
+                          return (
+                            <Checkbox key={role.id} value={role.id} style={{ width: '100%' }}>
+                              <Space direction="vertical" size={0}>
+                                <Typography.Text>{role.roleName}</Typography.Text>
+                                <Typography.Text type="secondary">
+                                  {role.roleCode} · 资源 {grant.resourceIds.length} · Scope {grant.scopeIds.length} · 权限码{' '}
+                                  {grant.permissionCodeIds.length}
+                                </Typography.Text>
+                              </Space>
+                            </Checkbox>
+                          );
+                        })}
+                      </Space>
+                    </Checkbox.Group>
+                  )}
                 </div>
-                <Space>
-                  <Button size="small" onClick={() => setRoleIds(authorization.roles.map((role) => role.id))}>
-                    全选
-                  </Button>
-                  <Button size="small" onClick={() => setRoleIds([])} disabled={roleIds.length === 0}>
-                    清空
-                  </Button>
-                </Space>
-              </Flex>
-              <Typography.Paragraph type="secondary" style={{ margin: '6px 0 10px' }}>
-                角色决定该用户能访问哪些菜单、按钮、接口以及授权范围。
-              </Typography.Paragraph>
-              <div style={{ maxHeight: 380, overflow: 'auto', border: '1px solid #f0f0f0', borderRadius: 8, padding: 12 }}>
-                {authorization.roles.length === 0 ? (
-                  <Empty description="当前应用还没有角色，请先在角色与权限中新增角色" />
-                ) : (
-                  <Checkbox.Group value={roleIds} onChange={(values) => setRoleIds(values.map(String))}>
-                    <Space direction="vertical" size={10}>
-                      {authorization.roles.map((role) => (
-                        <Checkbox key={role.id} value={role.id}>
-                          <Space direction="vertical" size={0}>
-                            <Typography.Text>{role.roleName}</Typography.Text>
-                            <Typography.Text type="secondary">{role.roleCode}</Typography.Text>
-                          </Space>
-                        </Checkbox>
+              </section>
+
+              <Card size="small" title="授权结果预览">
+                <Space direction="vertical" size={12} style={{ width: '100%' }}>
+                  <RowPreview title="角色" emptyText="未选择角色">
+                    {selectedRoles.map((role) => (
+                      <Tag key={role.id} color="blue">
+                        {role.roleName} · {role.roleCode}
+                      </Tag>
+                    ))}
+                  </RowPreview>
+                  <RowPreview title="资源" emptyText="未获得资源权限">
+                    {previewResources.map(renderResource)}
+                  </RowPreview>
+                  <RowPreview title="Scope" emptyText="未获得授权范围">
+                    {authorization.scopes
+                      .filter((scope) => preview.scopeIds.includes(scope.id))
+                      .map((scope) => (
+                        <Tag key={scope.id} color="green">
+                          {scope.scopeCode}
+                        </Tag>
                       ))}
-                    </Space>
-                  </Checkbox.Group>
-                )}
-              </div>
-            </section>
+                  </RowPreview>
+                  <RowPreview title="业务权限码" emptyText="未获得业务权限码">
+                    {authorization.permissionCodes
+                      .filter((permissionCode) => preview.permissionCodeIds.includes(permissionCode.id))
+                      .map((permissionCode) => (
+                        <Tag key={permissionCode.id} color="purple">
+                          {permissionCode.permissionCode}
+                        </Tag>
+                      ))}
+                  </RowPreview>
+                </Space>
+              </Card>
+
+              <Card size="small">
+                <Flex gap={16} wrap="wrap">
+                  <Statistic title="已选角色" value={roleIds.length} />
+                  <Statistic title="资源权限" value={preview.resourceIds.length} />
+                  <Statistic title="Scope" value={preview.scopeIds.length} />
+                  <Statistic title="业务权限码" value={preview.permissionCodeIds.length} />
+                </Flex>
+              </Card>
+            </Space>
           )}
         </div>
       </Flex>
@@ -253,5 +396,23 @@ export function MemberAuthorizationPanel({ application }: Props) {
         </Form>
       </Modal>
     </Space>
+  );
+}
+
+type RowPreviewProps = {
+  title: string;
+  emptyText: string;
+  children: React.ReactNode;
+};
+
+function RowPreview({ title, emptyText, children }: RowPreviewProps) {
+  const hasContent = Array.isArray(children) ? children.length > 0 : Boolean(children);
+  return (
+    <div>
+      <Typography.Text strong>{title}</Typography.Text>
+      <div style={{ marginTop: 6 }}>
+        {hasContent ? <Space wrap>{children}</Space> : <Typography.Text type="secondary">{emptyText}</Typography.Text>}
+      </div>
+    </div>
   );
 }

@@ -1,5 +1,8 @@
 server:
   port: 9100
+  error:
+    include-message: always
+    include-binding-errors: always
 
 spring:
   application:
@@ -17,8 +20,11 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,metrics
 
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      db-type: H2

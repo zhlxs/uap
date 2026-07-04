@@ -200,6 +200,22 @@ export type User = {
   updatedAt: string;
 };
 
+export type UserApplicationAuthorization = {
+  applicationId: string;
+  appCode: string;
+  appName: string;
+  appType: string;
+  protocol: string;
+  permissionMode: string;
+  status: string;
+  roles: ApplicationRole[];
+};
+
+export type UserDetail = {
+  user: User;
+  authorizations: UserApplicationAuthorization[];
+};
+
 export type UserRoleAssignment = {
   userId: string;
   roleIds: string[];
@@ -208,6 +224,10 @@ export type UserRoleAssignment = {
 export type MemberAuthorization = {
   users: User[];
   roles: ApplicationRole[];
+  permissionCodes: PermissionCode[];
+  scopes: ApplicationScope[];
+  resources: ApplicationResource[];
+  roleGrants: RoleGrant[];
   assignments: UserRoleAssignment[];
 };
 
