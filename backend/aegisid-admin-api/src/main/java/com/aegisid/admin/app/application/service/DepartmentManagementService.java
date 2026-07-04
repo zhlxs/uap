@@ -55,7 +55,7 @@ public class DepartmentManagementService {
     @Transactional
     public DepartmentResponse createDepartment(CreateDepartmentRequest request) {
         DepartmentEntity parent = getParent(request.parentId());
-        assertDepartmentActive(parent, "Parent department is disabled");
+        assertDepartmentActive(parent, "上级部门已禁用，不能在其下新增部门");
         assertCodeAvailable(request.code(), null);
 
         LocalDateTime now = LocalDateTime.now();
@@ -78,10 +78,10 @@ public class DepartmentManagementService {
         DepartmentEntity department = getDepartmentEntity(departmentId);
         String parentId = normalizeBlank(request.parentId());
         if (departmentId.equals(parentId)) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "Department parent cannot be itself");
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "上级部门不能选择当前部门");
         }
         DepartmentEntity parent = getParent(parentId);
-        assertDepartmentActive(parent, "Parent department is disabled");
+        assertDepartmentActive(parent, "上级部门已禁用，不能调整到该部门下");
         assertParentMovable(department, parent);
         assertCodeAvailable(request.code(), departmentId);
 
@@ -118,14 +118,14 @@ public class DepartmentManagementService {
     DepartmentEntity getDepartmentEntity(String departmentId) {
         DepartmentEntity department = departmentMapper.selectById(departmentId);
         if (department == null) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Department not found");
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "部门不存在或已被删除");
         }
         return department;
     }
 
     DepartmentEntity getActiveDepartmentEntity(String departmentId) {
         DepartmentEntity department = getDepartmentEntity(departmentId);
-        assertDepartmentActive(department, "Department is disabled");
+        assertDepartmentActive(department, "所选部门已禁用，不能分配用户");
         return department;
     }
 
@@ -185,7 +185,7 @@ public class DepartmentManagementService {
                 .eq(DepartmentEntity::getCode, code)
                 .ne(StringUtils.hasText(excludeId), DepartmentEntity::getId, excludeId));
         if (count != null && count > 0) {
-            throw new BusinessException(ErrorCode.RESOURCE_CONFLICT, "Department code already exists");
+            throw new BusinessException(ErrorCode.RESOURCE_CONFLICT, "部门编码已存在");
         }
     }
 
@@ -199,7 +199,7 @@ public class DepartmentManagementService {
         Long count = departmentMapper.selectCount(Wrappers.<DepartmentEntity>lambdaQuery()
                 .eq(DepartmentEntity::getParentId, departmentId));
         if (count != null && count > 0) {
-            throw new BusinessException(ErrorCode.RESOURCE_CONFLICT, "Department has child departments");
+            throw new BusinessException(ErrorCode.RESOURCE_CONFLICT, "该部门下仍有子部门，不能删除");
         }
     }
 
@@ -207,7 +207,7 @@ public class DepartmentManagementService {
         Long count = userMapper.selectCount(Wrappers.<UserEntity>lambdaQuery()
                 .eq(UserEntity::getDepartmentId, departmentId));
         if (count != null && count > 0) {
-            throw new BusinessException(ErrorCode.RESOURCE_CONFLICT, "Department has assigned users");
+            throw new BusinessException(ErrorCode.RESOURCE_CONFLICT, "该部门下仍有关联用户，不能删除");
         }
     }
 
@@ -217,7 +217,7 @@ public class DepartmentManagementService {
         }
         String childPath = parent.getPath();
         if (StringUtils.hasText(childPath) && childPath.startsWith(department.getPath() + "/")) {
-            throw new BusinessException(ErrorCode.INVALID_REQUEST, "Department cannot move under its child");
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "不能将部门移动到其下级部门中");
         }
     }
 

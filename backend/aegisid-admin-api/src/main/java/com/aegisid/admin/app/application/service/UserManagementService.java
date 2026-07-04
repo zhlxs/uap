@@ -146,7 +146,7 @@ public class UserManagementService {
     UserEntity getUserEntity(String userId) {
         UserEntity user = userMapper.selectById(userId);
         if (user == null) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "User not found");
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "用户不存在或已被删除");
         }
         return user;
     }
