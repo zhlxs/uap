@@ -1,4 +1,5 @@
 import {
+  ApartmentOutlined,
   EditOutlined,
   EyeOutlined,
   LockOutlined,
@@ -19,20 +20,43 @@ import {
   Flex,
   Form,
   Input,
+  InputNumber,
   List,
   Popconfirm,
   Row,
+  Select,
   Space,
   Statistic,
   Table,
   Tag,
+  Tree,
   Typography,
   message
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+import type { DataNode } from 'antd/es/tree';
 import { useEffect, useMemo, useState } from 'react';
-import { createUser, disableUser, enableUser, getUser, listUsers, lockUser, updateUser } from '../../api/applications';
-import type { User, UserCreateInput, UserDetail } from '../applications/types';
+import {
+  createDepartment,
+  createUser,
+  disableDepartment,
+  disableUser,
+  enableDepartment,
+  enableUser,
+  getUser,
+  listDepartments,
+  listUsers,
+  lockUser,
+  updateDepartment,
+  updateUser
+} from '../../api/applications';
+import type {
+  Department,
+  DepartmentCreateInput,
+  User,
+  UserCreateInput,
+  UserDetail
+} from '../applications/types';
 
 const userStatusMap: Record<string, { color: string; text: string }> = {
   active: { color: 'success', text: '已启用' },
@@ -41,8 +65,23 @@ const userStatusMap: Record<string, { color: string; text: string }> = {
   pending: { color: 'warning', text: '待激活' }
 };
 
-function userDescription(user: User) {
-  return [user.employeeNo, user.email, user.mobile].filter(Boolean).join(' · ') || '暂无联系方式';
+const departmentStatusMap: Record<string, { color: string; text: string }> = {
+  active: { color: 'success', text: '启用' },
+  disabled: { color: 'default', text: '禁用' }
+};
+
+function statusTag(statusValue: string) {
+  const status = userStatusMap[statusValue] ?? { color: 'default', text: statusValue };
+  return <Tag color={status.color}>{status.text}</Tag>;
+}
+
+function departmentStatusTag(statusValue: string) {
+  const status = departmentStatusMap[statusValue] ?? { color: 'default', text: statusValue };
+  return <Tag color={status.color}>{status.text}</Tag>;
+}
+
+function userDescription(user: User, departmentName: string) {
+  return [departmentName, user.employeeNo, user.email, user.mobile].filter(Boolean).join(' · ') || '暂无联系方式';
 }
 
 function matchesKeyword(user: User, keyword: string) {
@@ -55,39 +94,95 @@ function matchesKeyword(user: User, keyword: string) {
   );
 }
 
-function statusTag(statusValue: string) {
-  const status = userStatusMap[statusValue] ?? { color: 'default', text: statusValue };
-  return <Tag color={status.color}>{status.text}</Tag>;
+function buildDepartmentTree(departments: Department[]): DataNode[] {
+  const nodeMap = new Map<string, DataNode>();
+  departments.forEach((department) => {
+    nodeMap.set(department.id, {
+      key: department.id,
+      title: (
+        <Space size={6}>
+          <Typography.Text>{department.name}</Typography.Text>
+          {department.status !== 'active' && <Tag>禁用</Tag>}
+        </Space>
+      ),
+      children: []
+    });
+  });
+
+  const roots: DataNode[] = [];
+  departments.forEach((department) => {
+    const node = nodeMap.get(department.id);
+    if (!node) {
+      return;
+    }
+    if (department.parentId && nodeMap.has(department.parentId)) {
+      nodeMap.get(department.parentId)?.children?.push(node);
+      return;
+    }
+    roots.push(node);
+  });
+
+  return [
+    {
+      key: 'all',
+      title: '全部部门',
+      children: roots
+    }
+  ];
 }
 
 export function UserList() {
   const [users, setUsers] = useState<User[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>('all');
   const [selectedDetail, setSelectedDetail] = useState<UserDetail | null>(null);
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [showDepartmentDrawer, setShowDepartmentDrawer] = useState(false);
+  const [editingDepartment, setEditingDepartment] = useState<Department | null>(null);
   const [keyword, setKeyword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [createForm] = Form.useForm<UserCreateInput>();
   const [editForm] = Form.useForm<UserCreateInput>();
+  const [departmentForm] = Form.useForm<DepartmentCreateInput>();
+
+  const departmentNameMap = useMemo(() => {
+    return new Map(departments.map((department) => [department.id, department.name]));
+  }, [departments]);
+
+  const departmentOptions = useMemo(() => {
+    return departments.map((department) => ({
+      label: department.name,
+      value: department.id,
+      disabled: department.status !== 'active'
+    }));
+  }, [departments]);
+
+  const selectedDepartment = useMemo(() => {
+    return departments.find((department) => department.id === selectedDepartmentId) ?? null;
+  }, [departments, selectedDepartmentId]);
+
+  const departmentTree = useMemo(() => buildDepartmentTree(departments), [departments]);
 
   async function refresh() {
     setLoading(true);
     setError(null);
     try {
-      const data = await listUsers();
-      setUsers(data);
+      const [userData, departmentData] = await Promise.all([listUsers(), listDepartments()]);
+      setUsers(userData);
+      setDepartments(departmentData);
       setSelectedDetail((current) => {
         if (!current) {
           return current;
         }
-        const updatedUser = data.find((user) => user.id === current.user.id);
+        const updatedUser = userData.find((user) => user.id === current.user.id);
         return updatedUser ? { ...current, user: updatedUser } : null;
       });
     } catch (exception) {
-      setError(exception instanceof Error ? exception.message : '加载用户失败');
+      setError(exception instanceof Error ? exception.message : '加载用户与组织失败');
     } finally {
       setLoading(false);
     }
@@ -97,17 +192,31 @@ export function UserList() {
     void refresh();
   }, []);
 
-  const filteredUsers = useMemo(() => users.filter((user) => matchesKeyword(user, keyword)), [users, keyword]);
+  const filteredUsers = useMemo(() => {
+    return users.filter((user) => {
+      const matchedDepartment = selectedDepartmentId === 'all' || user.departmentId === selectedDepartmentId;
+      return matchedDepartment && matchesKeyword(user, keyword);
+    });
+  }, [users, keyword, selectedDepartmentId]);
+
   const activeCount = useMemo(() => users.filter((user) => user.status === 'active').length, [users]);
   const disabledCount = useMemo(() => users.filter((user) => user.status === 'disabled').length, [users]);
   const lockedCount = useMemo(() => users.filter((user) => user.status === 'locked').length, [users]);
+
+  function departmentName(departmentId?: string | null) {
+    if (!departmentId) {
+      return '未分配部门';
+    }
+    return departmentNameMap.get(departmentId) ?? '未知部门';
+  }
 
   function fillEditForm(detail: UserDetail) {
     editForm.setFieldsValue({
       displayName: detail.user.displayName,
       employeeNo: detail.user.employeeNo ?? undefined,
       email: detail.user.email ?? undefined,
-      mobile: detail.user.mobile ?? undefined
+      mobile: detail.user.mobile ?? undefined,
+      departmentId: detail.user.departmentId ?? undefined
     });
   }
 
@@ -140,8 +249,33 @@ export function UserList() {
     setEditing(true);
   }
 
-  function cancelEdit() {
-    setEditing(false);
+  function openDepartmentCreate() {
+    setEditingDepartment(null);
+    departmentForm.setFieldsValue({
+      parentId: selectedDepartmentId === 'all' ? undefined : selectedDepartmentId,
+      sortOrder: 0
+    });
+    setShowDepartmentDrawer(true);
+  }
+
+  function openDepartmentEdit() {
+    if (!selectedDepartment) {
+      return;
+    }
+    setEditingDepartment(selectedDepartment);
+    departmentForm.setFieldsValue({
+      parentId: selectedDepartment.parentId ?? undefined,
+      name: selectedDepartment.name,
+      code: selectedDepartment.code,
+      sortOrder: selectedDepartment.sortOrder
+    });
+    setShowDepartmentDrawer(true);
+  }
+
+  function closeDepartmentDrawer() {
+    setShowDepartmentDrawer(false);
+    setEditingDepartment(null);
+    departmentForm.resetFields();
   }
 
   async function handleCreate(values: UserCreateInput) {
@@ -180,6 +314,24 @@ export function UserList() {
     }
   }
 
+  async function handleDepartmentSubmit(values: DepartmentCreateInput) {
+    setSaving(true);
+    setError(null);
+    try {
+      const saved = editingDepartment
+        ? await updateDepartment(editingDepartment.id, values)
+        : await createDepartment(values);
+      closeDepartmentDrawer();
+      await refresh();
+      setSelectedDepartmentId(saved.id);
+      void message.success(editingDepartment ? '部门已保存' : '部门已创建');
+    } catch (exception) {
+      setError(exception instanceof Error ? exception.message : '保存部门失败');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function updateStatus(user: User, action: 'enable' | 'disable' | 'lock') {
     setSaving(true);
     try {
@@ -195,6 +347,22 @@ export function UserList() {
     }
   }
 
+  async function updateDepartmentStatus(department: Department) {
+    setSaving(true);
+    try {
+      const updated =
+        department.status === 'active'
+          ? await disableDepartment(department.id)
+          : await enableDepartment(department.id);
+      setDepartments((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+      void message.success(updated.status === 'active' ? '部门已启用' : '部门已禁用');
+    } catch (exception) {
+      void message.error(exception instanceof Error ? exception.message : '更新部门状态失败');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const columns: ColumnsType<User> = [
     {
       title: '用户',
@@ -203,9 +371,16 @@ export function UserList() {
       render: (_, record) => (
         <Typography.Text className="nowrap-cell">
           <Typography.Text strong>{record.displayName}</Typography.Text>
-          <Typography.Text type="secondary"> · {userDescription(record)}</Typography.Text>
+          <Typography.Text type="secondary"> · {userDescription(record, departmentName(record.departmentId))}</Typography.Text>
         </Typography.Text>
       )
+    },
+    {
+      title: '所属部门',
+      dataIndex: 'departmentId',
+      width: 160,
+      ellipsis: true,
+      render: (value: string | null) => departmentName(value)
     },
     {
       title: '工号',
@@ -233,13 +408,6 @@ export function UserList() {
       dataIndex: 'status',
       width: 100,
       render: statusTag
-    },
-    {
-      title: '创建时间',
-      dataIndex: 'createdAt',
-      width: 180,
-      ellipsis: true,
-      render: (value: string) => new Date(value).toLocaleString()
     },
     {
       title: '操作',
@@ -310,63 +478,109 @@ export function UserList() {
         </Col>
         <Col xs={24} md={6}>
           <Card>
+            <Statistic title="组织部门" value={departments.length} prefix={<ApartmentOutlined />} />
+          </Card>
+        </Col>
+        <Col xs={24} md={6}>
+          <Card>
             <Statistic title="已启用" value={activeCount} suffix={`/ ${users.length}`} />
           </Card>
         </Col>
         <Col xs={24} md={6}>
           <Card>
-            <Statistic title="已禁用" value={disabledCount} />
-          </Card>
-        </Col>
-        <Col xs={24} md={6}>
-          <Card>
-            <Statistic title="已锁定" value={lockedCount} />
+            <Statistic title="已锁定" value={lockedCount} suffix={`禁用 ${disabledCount}`} />
           </Card>
         </Col>
       </Row>
 
-      <Card
-        title="用户清单"
-        extra={
-          <Input
-            allowClear
-            prefix={<SearchOutlined />}
-            placeholder="搜索姓名、工号、邮箱或手机号"
-            value={keyword}
-            onChange={(event) => setKeyword(event.target.value)}
-            style={{ width: 280 }}
-          />
-        }
-      >
-        <Table<User>
-          className="nowrap-table"
-          rowKey="id"
-          loading={loading}
-          columns={columns}
-          dataSource={filteredUsers}
-          locale={{ emptyText: <Empty description="暂无用户，请先新增用户" /> }}
-          scroll={{ x: 1280 }}
-          pagination={{ pageSize: 10, showSizeChanger: false }}
-          onRow={(record) => ({
-            onDoubleClick: () => void openDetail(record.id)
-          })}
-        />
-      </Card>
+      <Row gutter={[16, 16]} align="top">
+        <Col xs={24} lg={6}>
+          <Card
+            title="组织架构"
+            extra={
+              <Button type="link" size="small" icon={<PlusOutlined />} onClick={openDepartmentCreate}>
+                新增
+              </Button>
+            }
+          >
+            <Tree
+              blockNode
+              defaultExpandAll
+              selectedKeys={[selectedDepartmentId]}
+              treeData={departmentTree}
+              onSelect={(keys) => setSelectedDepartmentId(String(keys[0] ?? 'all'))}
+            />
+            <Space style={{ marginTop: 16 }}>
+              <Button size="small" icon={<EditOutlined />} disabled={!selectedDepartment} onClick={openDepartmentEdit}>
+                编辑
+              </Button>
+              {selectedDepartment && (
+                <Button size="small" loading={saving} onClick={() => void updateDepartmentStatus(selectedDepartment)}>
+                  {selectedDepartment.status === 'active' ? '禁用' : '启用'}
+                </Button>
+              )}
+            </Space>
+            {selectedDepartment && (
+              <Descriptions size="small" column={1} style={{ marginTop: 16 }}>
+                <Descriptions.Item label="部门编码">{selectedDepartment.code}</Descriptions.Item>
+                <Descriptions.Item label="状态">{departmentStatusTag(selectedDepartment.status)}</Descriptions.Item>
+              </Descriptions>
+            )}
+          </Card>
+        </Col>
+
+        <Col xs={24} lg={18}>
+          <Card
+            title={selectedDepartment ? `${selectedDepartment.name} · 用户清单` : '用户清单'}
+            extra={
+              <Input
+                allowClear
+                prefix={<SearchOutlined />}
+                placeholder="搜索姓名、工号、邮箱或手机号"
+                value={keyword}
+                onChange={(event) => setKeyword(event.target.value)}
+                style={{ width: 280 }}
+              />
+            }
+          >
+            <Table<User>
+              className="nowrap-table"
+              rowKey="id"
+              loading={loading}
+              columns={columns}
+              dataSource={filteredUsers}
+              locale={{ emptyText: <Empty description="暂无用户，请先新增用户" /> }}
+              scroll={{ x: 1280 }}
+              pagination={{ pageSize: 10, showSizeChanger: false }}
+              onRow={(record) => ({
+                onDoubleClick: () => void openDetail(record.id)
+              })}
+            />
+          </Card>
+        </Col>
+      </Row>
 
       <UserFormModal
         open={showCreate}
         form={createForm}
+        departments={departmentOptions}
         saving={saving}
         onCancel={() => setShowCreate(false)}
         onSubmit={handleCreate}
       />
 
+      <DepartmentFormDrawer
+        open={showDepartmentDrawer}
+        form={departmentForm}
+        departments={departmentOptions.filter((department) => department.value !== editingDepartment?.id)}
+        editingDepartment={editingDepartment}
+        saving={saving}
+        onCancel={closeDepartmentDrawer}
+        onSubmit={handleDepartmentSubmit}
+      />
+
       <Drawer
-        title={
-          selectedDetail
-            ? `${selectedDetail.user.displayName} · 用户详情`
-            : '用户详情'
-        }
+        title={selectedDetail ? `${selectedDetail.user.displayName} · 用户详情` : '用户详情'}
         width={760}
         open={selectedDetail !== null}
         loading={detailLoading}
@@ -399,12 +613,13 @@ export function UserList() {
           editing ? (
             <EditUserForm
               form={editForm}
+              departments={departmentOptions}
               saving={saving}
-              onCancel={cancelEdit}
+              onCancel={() => setEditing(false)}
               onSubmit={handleUpdate}
             />
           ) : (
-            <UserDetailView detail={selectedDetail} />
+            <UserDetailView detail={selectedDetail} departmentName={departmentName(selectedDetail.user.departmentId)} />
           )
         )}
       </Drawer>
@@ -415,12 +630,13 @@ export function UserList() {
 type UserFormModalProps = {
   open: boolean;
   form: ReturnType<typeof Form.useForm<UserCreateInput>>[0];
+  departments: Array<{ label: string; value: string; disabled: boolean }>;
   saving: boolean;
   onCancel: () => void;
   onSubmit: (values: UserCreateInput) => Promise<void>;
 };
 
-function UserFormModal({ open, form, saving, onCancel, onSubmit }: UserFormModalProps) {
+function UserFormModal({ open, form, departments, saving, onCancel, onSubmit }: UserFormModalProps) {
   return (
     <Drawer
       title="新增用户"
@@ -437,67 +653,125 @@ function UserFormModal({ open, form, saving, onCancel, onSubmit }: UserFormModal
         </Space>
       }
     >
-      <Form form={form} layout="vertical" requiredMark={false} onFinish={(values) => void onSubmit(values)}>
-        <Form.Item label="显示名称" name="displayName" rules={[{ required: true, message: '请输入显示名称' }]}>
-          <Input placeholder="例如：张三" maxLength={128} />
-        </Form.Item>
-        <Form.Item label="工号" name="employeeNo">
-          <Input placeholder="可选，例如：E10001" maxLength={64} />
-        </Form.Item>
-        <Form.Item label="邮箱" name="email">
-          <Input placeholder="可选，例如：zhangsan@example.com" maxLength={255} />
-        </Form.Item>
-        <Form.Item label="手机号" name="mobile">
-          <Input placeholder="可选" maxLength={32} />
-        </Form.Item>
-      </Form>
+      <UserFields form={form} departments={departments} onSubmit={onSubmit} />
     </Drawer>
   );
 }
 
 type EditUserFormProps = {
   form: ReturnType<typeof Form.useForm<UserCreateInput>>[0];
+  departments: Array<{ label: string; value: string; disabled: boolean }>;
   saving: boolean;
   onCancel: () => void;
   onSubmit: (values: UserCreateInput) => Promise<void>;
 };
 
-function EditUserForm({ form, saving, onCancel, onSubmit }: EditUserFormProps) {
+function EditUserForm({ form, departments, saving, onCancel, onSubmit }: EditUserFormProps) {
   return (
     <Card size="small" title="编辑用户">
-      <Form form={form} layout="vertical" requiredMark={false} onFinish={(values) => void onSubmit(values)}>
-        <Form.Item label="显示名称" name="displayName" rules={[{ required: true, message: '请输入显示名称' }]}>
-          <Input placeholder="例如：张三" maxLength={128} />
-        </Form.Item>
-        <Form.Item label="工号" name="employeeNo">
-          <Input placeholder="可选，例如：E10001" maxLength={64} />
-        </Form.Item>
-        <Form.Item label="邮箱" name="email">
-          <Input placeholder="可选，例如：zhangsan@example.com" maxLength={255} />
-        </Form.Item>
-        <Form.Item label="手机号" name="mobile">
-          <Input placeholder="可选" maxLength={32} />
-        </Form.Item>
+      <UserFields form={form} departments={departments} onSubmit={onSubmit} />
+      <Space>
+        <Button onClick={onCancel}>取消</Button>
+        <Button type="primary" loading={saving} onClick={() => form.submit()}>
+          保存
+        </Button>
+      </Space>
+    </Card>
+  );
+}
+
+type UserFieldsProps = {
+  form: ReturnType<typeof Form.useForm<UserCreateInput>>[0];
+  departments: Array<{ label: string; value: string; disabled: boolean }>;
+  onSubmit: (values: UserCreateInput) => Promise<void>;
+};
+
+function UserFields({ form, departments, onSubmit }: UserFieldsProps) {
+  return (
+    <Form form={form} layout="vertical" requiredMark={false} onFinish={(values) => void onSubmit(values)}>
+      <Form.Item label="显示名称" name="displayName" rules={[{ required: true, message: '请输入显示名称' }]}>
+        <Input placeholder="例如：张三" maxLength={128} />
+      </Form.Item>
+      <Form.Item label="所属部门" name="departmentId">
+        <Select allowClear placeholder="请选择部门" options={departments} />
+      </Form.Item>
+      <Form.Item label="工号" name="employeeNo">
+        <Input placeholder="可选，例如：E10001" maxLength={64} />
+      </Form.Item>
+      <Form.Item label="邮箱" name="email">
+        <Input placeholder="可选，例如：zhangsan@example.com" maxLength={255} />
+      </Form.Item>
+      <Form.Item label="手机号" name="mobile">
+        <Input placeholder="可选" maxLength={32} />
+      </Form.Item>
+    </Form>
+  );
+}
+
+type DepartmentFormDrawerProps = {
+  open: boolean;
+  form: ReturnType<typeof Form.useForm<DepartmentCreateInput>>[0];
+  departments: Array<{ label: string; value: string; disabled: boolean }>;
+  editingDepartment: Department | null;
+  saving: boolean;
+  onCancel: () => void;
+  onSubmit: (values: DepartmentCreateInput) => Promise<void>;
+};
+
+function DepartmentFormDrawer({
+  open,
+  form,
+  departments,
+  editingDepartment,
+  saving,
+  onCancel,
+  onSubmit
+}: DepartmentFormDrawerProps) {
+  return (
+    <Drawer
+      title={editingDepartment ? '编辑部门' : '新增部门'}
+      width={480}
+      open={open}
+      onClose={onCancel}
+      destroyOnHidden
+      extra={
         <Space>
           <Button onClick={onCancel}>取消</Button>
           <Button type="primary" loading={saving} onClick={() => form.submit()}>
             保存
           </Button>
         </Space>
+      }
+    >
+      <Form form={form} layout="vertical" requiredMark={false} onFinish={(values) => void onSubmit(values)}>
+        <Form.Item label="上级部门" name="parentId">
+          <Select allowClear placeholder="不选择则作为一级部门" options={departments} />
+        </Form.Item>
+        <Form.Item label="部门名称" name="name" rules={[{ required: true, message: '请输入部门名称' }]}>
+          <Input placeholder="例如：产品研发部" maxLength={128} />
+        </Form.Item>
+        <Form.Item label="部门编码" name="code" rules={[{ required: true, message: '请输入部门编码' }]}>
+          <Input placeholder="例如：RD" maxLength={64} />
+        </Form.Item>
+        <Form.Item label="排序" name="sortOrder">
+          <InputNumber min={0} max={9999} style={{ width: '100%' }} />
+        </Form.Item>
       </Form>
-    </Card>
+    </Drawer>
   );
 }
 
 type UserDetailViewProps = {
   detail: UserDetail;
+  departmentName: string;
 };
 
-function UserDetailView({ detail }: UserDetailViewProps) {
+function UserDetailView({ detail, departmentName }: UserDetailViewProps) {
   return (
     <Space direction="vertical" size={18} style={{ width: '100%' }}>
       <Descriptions bordered column={1} size="middle">
         <Descriptions.Item label="显示名称">{detail.user.displayName}</Descriptions.Item>
+        <Descriptions.Item label="所属部门">{departmentName}</Descriptions.Item>
         <Descriptions.Item label="工号">{detail.user.employeeNo || '-'}</Descriptions.Item>
         <Descriptions.Item label="邮箱">{detail.user.email || '-'}</Descriptions.Item>
         <Descriptions.Item label="手机号">{detail.user.mobile || '-'}</Descriptions.Item>

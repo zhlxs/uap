@@ -9,6 +9,7 @@ public record UserResponse(
         String employeeNo,
         String email,
         String mobile,
+        String departmentId,
         String status,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
@@ -20,6 +21,7 @@ public record UserResponse(
                 user.getEmployeeNo(),
                 user.getEmail(),
                 user.getMobile(),
+                user.getDepartmentId(),
                 user.getStatus(),
                 user.getCreatedAt(),
                 user.getUpdatedAt()

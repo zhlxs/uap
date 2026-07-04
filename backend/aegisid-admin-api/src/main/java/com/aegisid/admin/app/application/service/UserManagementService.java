@@ -24,21 +24,25 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 @Service
 public class UserManagementService {
     private final ApplicationManagementService applicationManagementService;
+    private final DepartmentManagementService departmentManagementService;
     private final UserMapper userMapper;
     private final RoleMapper roleMapper;
     private final UserRoleMapper userRoleMapper;
 
     public UserManagementService(
             ApplicationManagementService applicationManagementService,
+            DepartmentManagementService departmentManagementService,
             UserMapper userMapper,
             RoleMapper roleMapper,
             UserRoleMapper userRoleMapper
     ) {
         this.applicationManagementService = applicationManagementService;
+        this.departmentManagementService = departmentManagementService;
         this.userMapper = userMapper;
         this.roleMapper = roleMapper;
         this.userRoleMapper = userRoleMapper;
@@ -70,6 +74,7 @@ public class UserManagementService {
         user.setEmployeeNo(request.employeeNo());
         user.setEmail(request.email());
         user.setMobile(request.mobile());
+        user.setDepartmentId(normalizeDepartmentId(request.departmentId()));
         user.setUserType("employee");
         user.setStatus(RecordStatus.ACTIVE);
         user.setCreatedAt(now);
@@ -85,6 +90,7 @@ public class UserManagementService {
         user.setEmployeeNo(request.employeeNo());
         user.setEmail(request.email());
         user.setMobile(request.mobile());
+        user.setDepartmentId(normalizeDepartmentId(request.departmentId()));
         user.setUpdatedAt(LocalDateTime.now());
         userMapper.updateById(user);
         return UserResponse.from(user);
@@ -155,6 +161,14 @@ public class UserManagementService {
         user.setUpdatedAt(LocalDateTime.now());
         userMapper.updateById(user);
         return UserResponse.from(user);
+    }
+
+    private String normalizeDepartmentId(String departmentId) {
+        if (!StringUtils.hasText(departmentId)) {
+            return null;
+        }
+        departmentManagementService.getDepartmentEntity(departmentId);
+        return departmentId;
     }
 
     private String newId() {

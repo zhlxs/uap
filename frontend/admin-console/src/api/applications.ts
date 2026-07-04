@@ -7,6 +7,8 @@ import type {
   ApplicationRole,
   ApplicationScope,
   ClientSecret,
+  Department,
+  DepartmentCreateInput,
   OAuthClient,
   OAuthClientCreateInput,
   MemberAuthorization,
@@ -129,6 +131,36 @@ export function createUser(input: UserCreateInput): Promise<User> {
 
 export function listUsers(): Promise<User[]> {
   return request<User[]>('/api/admin/users');
+}
+
+export function listDepartments(): Promise<Department[]> {
+  return request<Department[]>('/api/admin/departments');
+}
+
+export function createDepartment(input: DepartmentCreateInput): Promise<Department> {
+  return request<Department>('/api/admin/departments', {
+    method: 'POST',
+    body: JSON.stringify(input)
+  });
+}
+
+export function updateDepartment(departmentId: string, input: DepartmentCreateInput): Promise<Department> {
+  return request<Department>(`/api/admin/departments/${departmentId}`, {
+    method: 'PUT',
+    body: JSON.stringify(input)
+  });
+}
+
+export function enableDepartment(departmentId: string): Promise<Department> {
+  return request<Department>(`/api/admin/departments/${departmentId}/enable`, {
+    method: 'POST'
+  });
+}
+
+export function disableDepartment(departmentId: string): Promise<Department> {
+  return request<Department>(`/api/admin/departments/${departmentId}/disable`, {
+    method: 'POST'
+  });
 }
 
 export function getUser(userId: string): Promise<UserDetail> {

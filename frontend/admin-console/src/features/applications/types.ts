@@ -195,6 +195,19 @@ export type User = {
   employeeNo: string | null;
   email: string | null;
   mobile: string | null;
+  departmentId: string | null;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type Department = {
+  id: string;
+  parentId: string | null;
+  name: string;
+  code: string;
+  path: string;
+  sortOrder: number;
   status: string;
   createdAt: string;
   updatedAt: string;
@@ -236,6 +249,14 @@ export type UserCreateInput = {
   employeeNo?: string;
   email?: string;
   mobile?: string;
+  departmentId?: string;
+};
+
+export type DepartmentCreateInput = {
+  parentId?: string;
+  name: string;
+  code: string;
+  sortOrder?: number;
 };
 
 export type UserRoleUpdateInput = {
