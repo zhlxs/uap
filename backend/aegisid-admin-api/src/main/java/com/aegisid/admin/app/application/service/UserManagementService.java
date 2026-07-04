@@ -81,7 +81,7 @@ public class UserManagementService {
         user.setEmployeeNo(request.employeeNo());
         user.setEmail(request.email());
         user.setMobile(request.mobile());
-        user.setDepartmentId(normalizeDepartmentId(request.departmentId()));
+        user.setDepartmentId(normalizeDepartmentId(request.departmentId(), null));
         user.setUserType("employee");
         user.setStatus(RecordStatus.ACTIVE);
         user.setCreatedAt(now);
@@ -97,7 +97,7 @@ public class UserManagementService {
         user.setEmployeeNo(request.employeeNo());
         user.setEmail(request.email());
         user.setMobile(request.mobile());
-        user.setDepartmentId(normalizeDepartmentId(request.departmentId()));
+        user.setDepartmentId(normalizeDepartmentId(request.departmentId(), user.getDepartmentId()));
         user.setUpdatedAt(LocalDateTime.now());
         userMapper.updateById(user);
         return UserResponse.from(user);
@@ -190,11 +190,15 @@ public class UserManagementService {
         return UserResponse.from(user);
     }
 
-    private String normalizeDepartmentId(String departmentId) {
+    private String normalizeDepartmentId(String departmentId, String currentDepartmentId) {
         if (!StringUtils.hasText(departmentId)) {
             return null;
         }
-        departmentManagementService.getDepartmentEntity(departmentId);
+        if (departmentId.equals(currentDepartmentId)) {
+            departmentManagementService.getDepartmentEntity(departmentId);
+            return departmentId;
+        }
+        departmentManagementService.getActiveDepartmentEntity(departmentId);
         return departmentId;
     }
 

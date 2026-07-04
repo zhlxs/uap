@@ -1,5 +1,6 @@
 import {
   ApartmentOutlined,
+  DeleteOutlined,
   EditOutlined,
   EyeOutlined,
   FolderOpenOutlined,
@@ -41,6 +42,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   createDepartment,
   createUser,
+  deleteDepartment,
   disableDepartment,
   disableUser,
   enableDepartment,
@@ -197,11 +199,11 @@ export function UserList() {
     return buildDepartmentTree(departments, departmentKeyword);
   }, [departments, departmentKeyword]);
 
-  async function refresh() {
+  async function refresh(nextDepartmentId = selectedDepartmentId) {
     setLoading(true);
     setError(null);
     try {
-      const departmentId = selectedDepartmentId === 'all' ? undefined : selectedDepartmentId;
+      const departmentId = nextDepartmentId === 'all' ? undefined : nextDepartmentId;
       const [userData, departmentTreeData] = await Promise.all([
         listUsers({ departmentId, keyword }),
         listDepartmentTree()
@@ -349,8 +351,8 @@ export function UserList() {
         ? await updateDepartment(editingDepartment.id, values)
         : await createDepartment(values);
       closeDepartmentDrawer();
-      await refresh();
       setSelectedDepartmentId(saved.id);
+      await refresh(saved.id);
       void message.success(editingDepartment ? '部门已保存' : '部门已创建');
     } catch (exception) {
       setError(exception instanceof Error ? exception.message : '保存部门失败');
@@ -385,6 +387,21 @@ export function UserList() {
       void message.success(updated.status === 'active' ? '部门已启用' : '部门已禁用');
     } catch (exception) {
       void message.error(exception instanceof Error ? exception.message : '更新部门状态失败');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDeleteDepartment(department: Department) {
+    setSaving(true);
+    setError(null);
+    try {
+      await deleteDepartment(department.id);
+      setSelectedDepartmentId('all');
+      await refresh('all');
+      void message.success('部门已删除');
+    } catch (exception) {
+      setError(exception instanceof Error ? exception.message : '删除部门失败');
     } finally {
       setSaving(false);
     }
@@ -564,6 +581,17 @@ export function UserList() {
                       <Button type="link" size="small" loading={saving} onClick={() => void updateDepartmentStatus(selectedDepartment)}>
                         {selectedDepartment.status === 'active' ? '禁用' : '启用'}
                       </Button>
+                    )}
+                    {selectedDepartment && (
+                      <Popconfirm
+                        title="删除部门"
+                        description="仅空部门可删除；存在子部门或已分配用户时系统会拒绝删除。"
+                        onConfirm={() => void handleDeleteDepartment(selectedDepartment)}
+                      >
+                        <Button type="link" size="small" danger icon={<DeleteOutlined />} loading={saving}>
+                          删除
+                        </Button>
+                      </Popconfirm>
                     )}
                   </Space>
                 </Flex>

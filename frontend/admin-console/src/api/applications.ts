@@ -180,6 +180,12 @@ export function disableDepartment(departmentId: string): Promise<Department> {
   });
 }
 
+export function deleteDepartment(departmentId: string): Promise<void> {
+  return request<void>(`/api/admin/departments/${departmentId}`, {
+    method: 'DELETE'
+  });
+}
+
 export function getUser(userId: string): Promise<UserDetail> {
   return request<UserDetail>(`/api/admin/users/${userId}`);
 }

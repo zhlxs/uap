@@ -1,7 +1,9 @@
 package com.aegisid.admin.app.application.service;
 
 import com.aegisid.admin.app.infrastructure.persistence.entity.DepartmentEntity;
+import com.aegisid.admin.app.infrastructure.persistence.entity.UserEntity;
 import com.aegisid.admin.app.infrastructure.persistence.mapper.DepartmentMapper;
+import com.aegisid.admin.app.infrastructure.persistence.mapper.UserMapper;
 import com.aegisid.admin.app.interfaces.request.CreateDepartmentRequest;
 import com.aegisid.admin.app.interfaces.request.UpdateDepartmentRequest;
 import com.aegisid.admin.app.interfaces.response.DepartmentResponse;
@@ -24,9 +26,11 @@ import org.springframework.util.StringUtils;
 @Service
 public class DepartmentManagementService {
     private final DepartmentMapper departmentMapper;
+    private final UserMapper userMapper;
 
-    public DepartmentManagementService(DepartmentMapper departmentMapper) {
+    public DepartmentManagementService(DepartmentMapper departmentMapper, UserMapper userMapper) {
         this.departmentMapper = departmentMapper;
+        this.userMapper = userMapper;
     }
 
     public List<DepartmentResponse> listDepartments() {
@@ -51,6 +55,7 @@ public class DepartmentManagementService {
     @Transactional
     public DepartmentResponse createDepartment(CreateDepartmentRequest request) {
         DepartmentEntity parent = getParent(request.parentId());
+        assertDepartmentActive(parent, "Parent department is disabled");
         assertCodeAvailable(request.code(), null);
 
         LocalDateTime now = LocalDateTime.now();
@@ -76,6 +81,7 @@ public class DepartmentManagementService {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "Department parent cannot be itself");
         }
         DepartmentEntity parent = getParent(parentId);
+        assertDepartmentActive(parent, "Parent department is disabled");
         assertParentMovable(department, parent);
         assertCodeAvailable(request.code(), departmentId);
 
@@ -101,11 +107,25 @@ public class DepartmentManagementService {
         return updateDepartmentStatus(departmentId, RecordStatus.DISABLED);
     }
 
+    @Transactional
+    public void deleteDepartment(String departmentId) {
+        getDepartmentEntity(departmentId);
+        assertNoChildren(departmentId);
+        assertNoUsers(departmentId);
+        departmentMapper.deleteById(departmentId);
+    }
+
     DepartmentEntity getDepartmentEntity(String departmentId) {
         DepartmentEntity department = departmentMapper.selectById(departmentId);
         if (department == null) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Department not found");
         }
+        return department;
+    }
+
+    DepartmentEntity getActiveDepartmentEntity(String departmentId) {
+        DepartmentEntity department = getDepartmentEntity(departmentId);
+        assertDepartmentActive(department, "Department is disabled");
         return department;
     }
 
@@ -166,6 +186,28 @@ public class DepartmentManagementService {
                 .ne(StringUtils.hasText(excludeId), DepartmentEntity::getId, excludeId));
         if (count != null && count > 0) {
             throw new BusinessException(ErrorCode.RESOURCE_CONFLICT, "Department code already exists");
+        }
+    }
+
+    private void assertDepartmentActive(DepartmentEntity department, String message) {
+        if (department != null && !RecordStatus.ACTIVE.equals(department.getStatus())) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, message);
+        }
+    }
+
+    private void assertNoChildren(String departmentId) {
+        Long count = departmentMapper.selectCount(Wrappers.<DepartmentEntity>lambdaQuery()
+                .eq(DepartmentEntity::getParentId, departmentId));
+        if (count != null && count > 0) {
+            throw new BusinessException(ErrorCode.RESOURCE_CONFLICT, "Department has child departments");
+        }
+    }
+
+    private void assertNoUsers(String departmentId) {
+        Long count = userMapper.selectCount(Wrappers.<UserEntity>lambdaQuery()
+                .eq(UserEntity::getDepartmentId, departmentId));
+        if (count != null && count > 0) {
+            throw new BusinessException(ErrorCode.RESOURCE_CONFLICT, "Department has assigned users");
         }
     }
 

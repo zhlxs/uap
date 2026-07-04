@@ -8,6 +8,7 @@ import com.aegisid.admin.app.interfaces.response.DepartmentTreeResponse;
 import com.aegisid.common.api.ApiResponse;
 import jakarta.validation.Valid;
 import java.util.List;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -56,5 +57,11 @@ public class DepartmentController {
     @PostMapping("/{departmentId}/disable")
     ApiResponse<DepartmentResponse> disable(@PathVariable String departmentId) {
         return ApiResponse.ok(departmentManagementService.disableDepartment(departmentId));
+    }
+
+    @DeleteMapping("/{departmentId}")
+    ApiResponse<Void> delete(@PathVariable String departmentId) {
+        departmentManagementService.deleteDepartment(departmentId);
+        return ApiResponse.ok(null);
     }
 }
