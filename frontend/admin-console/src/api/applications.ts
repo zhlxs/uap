@@ -121,41 +121,41 @@ export function getMemberAuthorization(applicationId: string): Promise<MemberAut
 }
 
 export function createUser(input: UserCreateInput): Promise<User> {
-  return request<User>('/api/admin/applications/users', {
+  return request<User>('/api/admin/users', {
     method: 'POST',
     body: JSON.stringify(input)
   });
 }
 
 export function listUsers(): Promise<User[]> {
-  return request<User[]>('/api/admin/applications/users');
+  return request<User[]>('/api/admin/users');
 }
 
 export function getUser(userId: string): Promise<UserDetail> {
-  return request<UserDetail>(`/api/admin/applications/users/${userId}`);
+  return request<UserDetail>(`/api/admin/users/${userId}`);
 }
 
 export function updateUser(userId: string, input: UserCreateInput): Promise<User> {
-  return request<User>(`/api/admin/applications/users/${userId}`, {
+  return request<User>(`/api/admin/users/${userId}`, {
     method: 'PUT',
     body: JSON.stringify(input)
   });
 }
 
 export function enableUser(userId: string): Promise<User> {
-  return request<User>(`/api/admin/applications/users/${userId}/enable`, {
+  return request<User>(`/api/admin/users/${userId}/enable`, {
     method: 'POST'
   });
 }
 
 export function disableUser(userId: string): Promise<User> {
-  return request<User>(`/api/admin/applications/users/${userId}/disable`, {
+  return request<User>(`/api/admin/users/${userId}/disable`, {
     method: 'POST'
   });
 }
 
 export function lockUser(userId: string): Promise<User> {
-  return request<User>(`/api/admin/applications/users/${userId}/lock`, {
+  return request<User>(`/api/admin/users/${userId}/lock`, {
     method: 'POST'
   });
 }

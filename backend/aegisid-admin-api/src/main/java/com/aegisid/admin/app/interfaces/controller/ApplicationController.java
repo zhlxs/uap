@@ -16,10 +16,8 @@ import com.aegisid.admin.app.interfaces.request.CreatePermissionCodeRequest;
 import com.aegisid.admin.app.interfaces.request.CreateResourceRequest;
 import com.aegisid.admin.app.interfaces.request.CreateRoleRequest;
 import com.aegisid.admin.app.interfaces.request.CreateScopeRequest;
-import com.aegisid.admin.app.interfaces.request.CreateUserRequest;
 import com.aegisid.admin.app.interfaces.request.UpdatePermissionPolicyRequest;
 import com.aegisid.admin.app.interfaces.request.UpdateRoleGrantsRequest;
-import com.aegisid.admin.app.interfaces.request.UpdateUserRequest;
 import com.aegisid.admin.app.interfaces.request.UpdateUserRolesRequest;
 import com.aegisid.admin.app.interfaces.response.ApplicationModeResponse;
 import com.aegisid.admin.app.interfaces.response.ApplicationResponse;
@@ -32,8 +30,6 @@ import com.aegisid.admin.app.interfaces.response.ResourceResponse;
 import com.aegisid.admin.app.interfaces.response.RoleGrantResponse;
 import com.aegisid.admin.app.interfaces.response.RoleResponse;
 import com.aegisid.admin.app.interfaces.response.ScopeResponse;
-import com.aegisid.admin.app.interfaces.response.UserResponse;
-import com.aegisid.admin.app.interfaces.response.UserDetailResponse;
 import com.aegisid.admin.app.interfaces.response.UserRoleAssignmentResponse;
 import com.aegisid.common.api.ApiResponse;
 import jakarta.validation.Valid;
@@ -198,44 +194,6 @@ public class ApplicationController {
     @GetMapping("/{id}/member-authorization")
     ApiResponse<MemberAuthorizationResponse> memberAuthorization(@PathVariable String id) {
         return ApiResponse.ok(memberAuthorizationService.getConfig(id));
-    }
-
-    @PostMapping("/users")
-    ApiResponse<UserResponse> createUser(@Valid @RequestBody CreateUserRequest request) {
-        return ApiResponse.ok(memberAuthorizationService.createUser(request));
-    }
-
-    @GetMapping("/users")
-    ApiResponse<List<UserResponse>> listUsers() {
-        return ApiResponse.ok(memberAuthorizationService.listUsers());
-    }
-
-    @GetMapping("/users/{userId}")
-    ApiResponse<UserDetailResponse> getUser(@PathVariable String userId) {
-        return ApiResponse.ok(memberAuthorizationService.getUser(userId));
-    }
-
-    @PutMapping("/users/{userId}")
-    ApiResponse<UserResponse> updateUser(
-            @PathVariable String userId,
-            @Valid @RequestBody UpdateUserRequest request
-    ) {
-        return ApiResponse.ok(memberAuthorizationService.updateUser(userId, request));
-    }
-
-    @PostMapping("/users/{userId}/enable")
-    ApiResponse<UserResponse> enableUser(@PathVariable String userId) {
-        return ApiResponse.ok(memberAuthorizationService.enableUser(userId));
-    }
-
-    @PostMapping("/users/{userId}/disable")
-    ApiResponse<UserResponse> disableUser(@PathVariable String userId) {
-        return ApiResponse.ok(memberAuthorizationService.disableUser(userId));
-    }
-
-    @PostMapping("/users/{userId}/lock")
-    ApiResponse<UserResponse> lockUser(@PathVariable String userId) {
-        return ApiResponse.ok(memberAuthorizationService.lockUser(userId));
     }
 
     @PutMapping("/{id}/users/{userId}/roles")
