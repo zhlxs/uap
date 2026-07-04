@@ -100,34 +100,14 @@ body {
 }
 
 .org-panel .ant-card-body {
-  padding: 16px;
-}
-
-.org-summary {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
-.org-summary > div {
-  min-width: 0;
   padding: 12px;
-  background: #f8fafc;
-  border: 1px solid #edf0f4;
-  border-radius: 6px;
-}
-
-.org-summary .ant-typography {
-  margin: 0;
 }
 
 .org-tree {
-  max-height: 420px;
+  max-height: 520px;
   overflow: auto;
-  padding: 4px;
+  padding: 2px 0;
   background: #ffffff;
-  border: 1px solid #edf0f4;
-  border-radius: 6px;
 }
 
 .org-tree .ant-tree-treenode {
@@ -139,18 +119,18 @@ body {
   display: flex;
   align-items: center;
   min-width: 0;
-  height: 36px;
+  height: 34px;
   padding: 0 8px;
   border-radius: 6px;
 }
 
 .org-tree .ant-tree-node-content-wrapper:hover {
-  background: #f2f6f6;
+  background: #f6f8fa;
 }
 
 .org-tree .ant-tree-node-selected {
-  background: #e6f2ef !important;
-  color: #15584f;
+  background: #edf5f3 !important;
+  color: #1f6f64;
   font-weight: 600;
 }
 
@@ -168,14 +148,8 @@ body {
   width: 100%;
 }
 
-.org-tree-node-main {
-  display: flex;
-  flex-direction: column;
+.org-tree-node-name {
   min-width: 0;
-}
-
-.org-tree-node-name,
-.org-tree-node-code {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -185,29 +159,9 @@ body {
   line-height: 18px;
 }
 
-.org-tree-node-code {
-  color: #667085;
-  font-size: 12px;
-  font-weight: 400;
-  line-height: 16px;
-}
-
-.org-tree-node-meta {
-  display: inline-flex;
-  align-items: center;
-  flex-shrink: 0;
-  gap: 4px;
-}
-
-.org-current {
-  padding: 14px;
-  background: #fbfcfd;
-  border: 1px solid #edf0f4;
-  border-radius: 6px;
-}
-
-.org-current .ant-descriptions {
-  margin: 12px 0;
+.org-actions {
+  padding-top: 10px;
+  border-top: 1px solid #edf0f4;
 }
 
 @media (max-width: 860px) {

@@ -1,6 +1,5 @@
 import {
   ApartmentOutlined,
-  BranchesOutlined,
   EditOutlined,
   EyeOutlined,
   FolderOpenOutlined,
@@ -68,18 +67,8 @@ const userStatusMap: Record<string, { color: string; text: string }> = {
   pending: { color: 'warning', text: '待激活' }
 };
 
-const departmentStatusMap: Record<string, { color: string; text: string }> = {
-  active: { color: 'success', text: '启用' },
-  disabled: { color: 'default', text: '禁用' }
-};
-
 function statusTag(statusValue: string) {
   const status = userStatusMap[statusValue] ?? { color: 'default', text: statusValue };
-  return <Tag color={status.color}>{status.text}</Tag>;
-}
-
-function departmentStatusTag(statusValue: string) {
-  const status = departmentStatusMap[statusValue] ?? { color: 'default', text: statusValue };
   return <Tag color={status.color}>{status.text}</Tag>;
 }
 
@@ -122,11 +111,7 @@ function collectMatchedDepartmentIds(departments: Department[], keyword: string)
   return matchedIds;
 }
 
-function buildDepartmentTree(
-  departments: Department[],
-  userCountMap: Map<string, number>,
-  keyword: string
-): DataNode[] {
+function buildDepartmentTree(departments: Department[], keyword: string): DataNode[] {
   const nodeMap = new Map<string, DataNode>();
   const visibleIds = collectMatchedDepartmentIds(departments, keyword);
   departments.forEach((department) => {
@@ -137,14 +122,10 @@ function buildDepartmentTree(
       key: department.id,
       title: (
         <div className="org-tree-node">
-          <span className="org-tree-node-main">
-            <span className="org-tree-node-name">{department.name}</span>
-            <span className="org-tree-node-code">{department.code}</span>
-          </span>
-          <span className="org-tree-node-meta">
-            {department.status !== 'active' && <Tag>禁用</Tag>}
-            <Tag bordered={false}>{userCountMap.get(department.id) ?? 0}</Tag>
-          </span>
+          <Typography.Text ellipsis className="org-tree-node-name">
+            {department.name}
+          </Typography.Text>
+          {department.status !== 'active' && <Tag>禁用</Tag>}
         </div>
       ),
       children: []
@@ -169,11 +150,9 @@ function buildDepartmentTree(
       key: 'all',
       title: (
         <div className="org-tree-node">
-          <span className="org-tree-node-main">
-            <span className="org-tree-node-name">全部部门</span>
-            <span className="org-tree-node-code">ALL</span>
-          </span>
-          <Tag bordered={false}>{departments.length}</Tag>
+          <Typography.Text ellipsis className="org-tree-node-name">
+            全部部门
+          </Typography.Text>
         </div>
       ),
       children: roots
@@ -216,20 +195,9 @@ export function UserList() {
     return departments.find((department) => department.id === selectedDepartmentId) ?? null;
   }, [departments, selectedDepartmentId]);
 
-  const userCountMap = useMemo(() => {
-    const counts = new Map<string, number>();
-    users.forEach((user) => {
-      if (!user.departmentId) {
-        return;
-      }
-      counts.set(user.departmentId, (counts.get(user.departmentId) ?? 0) + 1);
-    });
-    return counts;
-  }, [users]);
-
   const departmentTree = useMemo(() => {
-    return buildDepartmentTree(departments, userCountMap, departmentKeyword);
-  }, [departments, userCountMap, departmentKeyword]);
+    return buildDepartmentTree(departments, departmentKeyword);
+  }, [departments, departmentKeyword]);
 
   async function refresh() {
     setLoading(true);
@@ -563,12 +531,14 @@ export function UserList() {
             className="org-panel"
             title="组织架构"
             extra={
-              <Button type="primary" size="small" icon={<PlusOutlined />} onClick={openDepartmentCreate}>
-                新增
-              </Button>
+              <Space size={4}>
+                <Button type="text" size="small" icon={<PlusOutlined />} onClick={openDepartmentCreate}>
+                  新增
+                </Button>
+              </Space>
             }
           >
-            <Space direction="vertical" size={14} style={{ width: '100%' }}>
+            <Space direction="vertical" size={12} style={{ width: '100%' }}>
               <Input
                 allowClear
                 prefix={<SearchOutlined />}
@@ -576,16 +546,6 @@ export function UserList() {
                 value={departmentKeyword}
                 onChange={(event) => setDepartmentKeyword(event.target.value)}
               />
-              <div className="org-summary">
-                <div>
-                  <Typography.Text type="secondary">部门总数</Typography.Text>
-                  <Typography.Title level={4}>{departments.length}</Typography.Title>
-                </div>
-                <div>
-                  <Typography.Text type="secondary">当前范围</Typography.Text>
-                  <Typography.Title level={4}>{filteredUsers.length}</Typography.Title>
-                </div>
-              </div>
               <Tree
                 blockNode
                 showIcon
@@ -593,32 +553,25 @@ export function UserList() {
                 className="org-tree"
                 selectedKeys={[selectedDepartmentId]}
                 treeData={departmentTree}
-                switcherIcon={<BranchesOutlined />}
                 icon={({ expanded }) => (expanded ? <FolderOpenOutlined /> : <FolderOutlined />)}
                 onSelect={(keys) => setSelectedDepartmentId(String(keys[0] ?? 'all'))}
               />
-              <div className="org-current">
+              <div className="org-actions">
                 <Flex align="center" justify="space-between" gap={12}>
-                  <Space direction="vertical" size={2}>
-                    <Typography.Text type="secondary">当前部门</Typography.Text>
-                    <Typography.Text strong>{selectedDepartment?.name ?? '全部部门'}</Typography.Text>
-                  </Space>
-                  {selectedDepartment ? departmentStatusTag(selectedDepartment.status) : <Tag color="processing">全量</Tag>}
-                </Flex>
-                <Descriptions size="small" column={1}>
-                  <Descriptions.Item label="部门编码">{selectedDepartment?.code ?? 'ALL'}</Descriptions.Item>
-                  <Descriptions.Item label="直属用户">{selectedDepartment ? userCountMap.get(selectedDepartment.id) ?? 0 : users.length}</Descriptions.Item>
-                </Descriptions>
-                <Space>
-                  <Button size="small" icon={<EditOutlined />} disabled={!selectedDepartment} onClick={openDepartmentEdit}>
-                    编辑部门
-                  </Button>
-                  {selectedDepartment && (
-                    <Button size="small" loading={saving} onClick={() => void updateDepartmentStatus(selectedDepartment)}>
-                      {selectedDepartment.status === 'active' ? '禁用' : '启用'}
+                  <Typography.Text ellipsis type="secondary">
+                    已选：{selectedDepartment?.name ?? '全部部门'}
+                  </Typography.Text>
+                  <Space size={4}>
+                    <Button type="link" size="small" disabled={!selectedDepartment} onClick={openDepartmentEdit}>
+                      编辑
                     </Button>
-                  )}
-                </Space>
+                    {selectedDepartment && (
+                      <Button type="link" size="small" loading={saving} onClick={() => void updateDepartmentStatus(selectedDepartment)}>
+                        {selectedDepartment.status === 'active' ? '禁用' : '启用'}
+                      </Button>
+                    )}
+                  </Space>
+                </Flex>
               </div>
             </Space>
           </Card>
