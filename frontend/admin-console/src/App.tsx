@@ -85,7 +85,7 @@ export function App() {
   }, []);
 
   function logout() {
-    redirectToLogout();
+    void redirectToLogout();
   }
 
   if (authStatus === 'checking') {

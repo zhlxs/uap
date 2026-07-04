@@ -1,4 +1,4 @@
-import { clearTokens, getAccessToken, redirectToLogin } from '../auth/session';
+import { clearTokens, getValidAccessToken, redirectToLogin, refreshTokens } from '../auth/session';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:9100';
 
@@ -11,15 +11,26 @@ type ApiResponse<T> = {
 };
 
 export async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const accessToken = getAccessToken();
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-      ...(options.headers ?? {})
+  let accessToken: string | null;
+  try {
+    accessToken = await getValidAccessToken();
+  } catch {
+    clearTokens();
+    await redirectToLogin();
+    throw new Error('登录状态已失效');
+  }
+  let response = await sendRequest(path, options, accessToken);
+
+  if (response.status === 401 && accessToken) {
+    try {
+      const refreshedTokens = await refreshTokens();
+      response = await sendRequest(path, options, refreshedTokens.accessToken);
+    } catch {
+      clearTokens();
+      await redirectToLogin();
+      throw new Error('登录状态已失效');
     }
-  });
+  }
 
   if (response.status === 401) {
     clearTokens();
@@ -42,4 +53,16 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
   }
 
   return payload.data;
+}
+
+async function sendRequest(path: string, options: RequestInit, accessToken: string | null): Promise<Response> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      ...(options.headers ?? {})
+    }
+  });
+  return response;
 }
