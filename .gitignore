@@ -21,6 +21,7 @@ yarn-error.log*
 pnpm-debug.log*
 
 # Runtime / logs
+data/
 logs/
 *.log
 

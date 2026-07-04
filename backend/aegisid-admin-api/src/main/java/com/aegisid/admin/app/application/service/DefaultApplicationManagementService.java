@@ -2,6 +2,7 @@ package com.aegisid.admin.app.application.service;
 
 import com.aegisid.admin.app.application.command.CreateApplicationCommand;
 import com.aegisid.admin.app.application.command.CreateOAuthClientCommand;
+import com.aegisid.admin.app.application.command.UpdatePermissionPolicyCommand;
 import com.aegisid.admin.app.application.query.CreatedClientSecret;
 import com.aegisid.admin.app.domain.model.Application;
 import com.aegisid.admin.app.domain.model.ClientSecret;
@@ -14,6 +15,9 @@ import com.aegisid.common.api.ErrorCode;
 import com.aegisid.common.domain.RecordStatus;
 import com.aegisid.common.exception.BusinessException;
 import com.aegisid.common.security.SecurityConstants;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.SecureRandom;
@@ -36,15 +40,18 @@ public class DefaultApplicationManagementService implements ApplicationManagemen
     private final ClientSecretRepository clientSecretRepository;
     private final SecureRandom secureRandom;
     private final PasswordEncoder passwordEncoder;
+    private final ObjectMapper objectMapper;
 
     public DefaultApplicationManagementService(
             ApplicationRepository applicationRepository,
             OAuthClientRepository oauthClientRepository,
-            ClientSecretRepository clientSecretRepository
+            ClientSecretRepository clientSecretRepository,
+            ObjectMapper objectMapper
     ) {
         this.applicationRepository = applicationRepository;
         this.oauthClientRepository = oauthClientRepository;
         this.clientSecretRepository = clientSecretRepository;
+        this.objectMapper = objectMapper;
         this.secureRandom = new SecureRandom();
         this.passwordEncoder = new BCryptPasswordEncoder();
     }
@@ -57,6 +64,11 @@ public class DefaultApplicationManagementService implements ApplicationManagemen
             throw new BusinessException(ErrorCode.RESOURCE_CONFLICT, "Application code already exists");
         });
         LocalDateTime now = LocalDateTime.now();
+        String capabilitiesJson = resolvePermissionCapabilities(
+                command.permissionMode(),
+                command.permissionCapabilitiesJson()
+        );
+        validatePermissionCapabilities(capabilitiesJson);
         Application application = new Application(
                 newId(),
                 command.appCode(),
@@ -65,7 +77,7 @@ public class DefaultApplicationManagementService implements ApplicationManagemen
                 command.protocol(),
                 command.homepageUrl(),
                 command.permissionMode(),
-                command.permissionCapabilitiesJson(),
+                capabilitiesJson,
                 RecordStatus.DRAFT,
                 now,
                 now
@@ -97,6 +109,24 @@ public class DefaultApplicationManagementService implements ApplicationManagemen
     public Application disable(String id) {
         Application application = get(id);
         Application updated = application.withStatus(RecordStatus.DISABLED, LocalDateTime.now());
+        return applicationRepository.update(updated);
+    }
+
+    @Override
+    @Transactional
+    public Application updatePermissionPolicy(UpdatePermissionPolicyCommand command) {
+        validatePermissionMode(command.permissionMode());
+        Application application = get(command.applicationId());
+        String capabilitiesJson = resolvePermissionCapabilities(
+                command.permissionMode(),
+                command.resetCapabilities() ? null : command.permissionCapabilitiesJson()
+        );
+        validatePermissionCapabilities(capabilitiesJson);
+        Application updated = application.withPermissionPolicy(
+                command.permissionMode(),
+                capabilitiesJson,
+                LocalDateTime.now()
+        );
         return applicationRepository.update(updated);
     }
 
@@ -162,6 +192,24 @@ public class DefaultApplicationManagementService implements ApplicationManagemen
     private void validatePermissionMode(String permissionMode) {
         if (!PermissionMode.isSupported(permissionMode)) {
             throw new BusinessException(ErrorCode.INVALID_PERMISSION_MODE);
+        }
+    }
+
+    private String resolvePermissionCapabilities(String permissionMode, String permissionCapabilitiesJson) {
+        if (permissionCapabilitiesJson == null || permissionCapabilitiesJson.isBlank()) {
+            return PermissionMode.defaultCapabilitiesJson(permissionMode);
+        }
+        return permissionCapabilitiesJson;
+    }
+
+    private void validatePermissionCapabilities(String permissionCapabilitiesJson) {
+        try {
+            JsonNode jsonNode = objectMapper.readTree(permissionCapabilitiesJson);
+            if (!jsonNode.isObject()) {
+                throw new BusinessException(ErrorCode.INVALID_REQUEST, "Permission capabilities must be a JSON object");
+            }
+        } catch (JsonProcessingException exception) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "Permission capabilities json is invalid");
         }
     }
 

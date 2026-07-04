@@ -30,4 +30,24 @@ public record Application(
                 updatedAt
         );
     }
+
+    public Application withPermissionPolicy(
+            String nextPermissionMode,
+            String nextPermissionCapabilitiesJson,
+            LocalDateTime updatedAt
+    ) {
+        return new Application(
+                id,
+                appCode,
+                appName,
+                appType,
+                protocol,
+                homepageUrl,
+                nextPermissionMode,
+                nextPermissionCapabilitiesJson,
+                status,
+                createdAt,
+                updatedAt
+        );
+    }
 }

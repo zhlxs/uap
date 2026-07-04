@@ -9,21 +9,6 @@ type Props = {
   onSubmit: (input: ApplicationCreateInput) => Promise<void>;
 };
 
-const defaultCapabilities = {
-  app_access_control: true,
-  role_permission_enabled: true,
-  resource_managed_by_uap: {
-    menu: false,
-    button: false,
-    api: false
-  },
-  data_scope_managed_by_uap: false,
-  permission_delivery: {
-    token_claims: true,
-    permission_api: true
-  }
-};
-
 export function ApplicationCreatePanel({ modes, open, busy, onClose, onSubmit }: Props) {
   const [form] = Form.useForm<ApplicationCreateInput>();
 
@@ -55,8 +40,7 @@ export function ApplicationCreatePanel({ modes, open, busy, onClose, onSubmit }:
           appType: 'web',
           protocol: 'oidc',
           permissionMode: 'delegated',
-          homepageUrl: '',
-          permissionCapabilitiesJson: JSON.stringify(defaultCapabilities)
+          homepageUrl: ''
         }}
         onFinish={(values) => void onSubmit(values)}
       >
@@ -92,9 +76,6 @@ export function ApplicationCreatePanel({ modes, open, busy, onClose, onSubmit }:
         </Form.Item>
         <Form.Item label="首页地址" name="homepageUrl">
           <Input placeholder="https://example.company.com" maxLength={512} />
-        </Form.Item>
-        <Form.Item name="permissionCapabilitiesJson" hidden>
-          <Input />
         </Form.Item>
       </Form>
     </Drawer>

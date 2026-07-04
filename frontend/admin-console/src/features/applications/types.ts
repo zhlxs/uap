@@ -15,6 +15,7 @@ export type Application = {
 export type ApplicationMode = {
   mode: string;
   displayName: string;
+  defaultCapabilitiesJson: string;
 };
 
 export type ApplicationCreateInput = {
@@ -24,7 +25,28 @@ export type ApplicationCreateInput = {
   protocol: string;
   homepageUrl: string;
   permissionMode: string;
-  permissionCapabilitiesJson: string;
+  permissionCapabilitiesJson?: string;
+};
+
+export type PermissionCapabilities = {
+  app_access_control?: boolean;
+  role_permission_enabled?: boolean;
+  resource_managed_by_uap?: {
+    menu?: boolean;
+    button?: boolean;
+    api?: boolean;
+  };
+  data_scope_managed_by_uap?: boolean;
+  permission_delivery?: {
+    token_claims?: boolean;
+    permission_api?: boolean;
+  };
+};
+
+export type PermissionPolicyUpdateInput = {
+  permissionMode: string;
+  permissionCapabilitiesJson?: string;
+  resetCapabilities: boolean;
 };
 
 export type OAuthClientCreateInput = {
@@ -69,3 +91,133 @@ export type ClientSecret = {
   createdAt: string;
 };
 
+export type ApplicationRole = {
+  id: string;
+  applicationId: string;
+  roleCode: string;
+  roleName: string;
+  roleType: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type PermissionCode = {
+  id: string;
+  applicationId: string;
+  permissionCode: string;
+  permissionName: string;
+  description: string | null;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ApplicationScope = {
+  id: string;
+  applicationId: string;
+  scopeCode: string;
+  scopeName: string;
+  description: string | null;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ApplicationResource = {
+  id: string;
+  applicationId: string;
+  parentId: string | null;
+  resourceCode: string;
+  resourceName: string;
+  resourceType: string;
+  path: string | null;
+  httpMethod: string | null;
+  urlPattern: string | null;
+  sortOrder: number;
+  visible: boolean;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type RoleGrant = {
+  roleId: string;
+  permissionCodeIds: string[];
+  scopeIds: string[];
+  resourceIds: string[];
+};
+
+export type PermissionConfig = {
+  roles: ApplicationRole[];
+  permissionCodes: PermissionCode[];
+  scopes: ApplicationScope[];
+  resources: ApplicationResource[];
+  roleGrants: RoleGrant[];
+};
+
+export type RoleCreateInput = {
+  roleCode: string;
+  roleName: string;
+};
+
+export type PermissionCodeCreateInput = {
+  permissionCode: string;
+  permissionName: string;
+  description?: string;
+};
+
+export type ScopeCreateInput = {
+  scopeCode: string;
+  scopeName: string;
+  description?: string;
+};
+
+export type ResourceCreateInput = {
+  parentId?: string;
+  resourceCode: string;
+  resourceName: string;
+  resourceType: string;
+  path?: string;
+  httpMethod?: string;
+  urlPattern?: string;
+};
+
+export type RoleGrantUpdateInput = {
+  permissionCodeIds: string[];
+  scopeIds: string[];
+  resourceIds: string[];
+};
+
+export type User = {
+  id: string;
+  displayName: string;
+  employeeNo: string | null;
+  email: string | null;
+  mobile: string | null;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type UserRoleAssignment = {
+  userId: string;
+  roleIds: string[];
+};
+
+export type MemberAuthorization = {
+  users: User[];
+  roles: ApplicationRole[];
+  assignments: UserRoleAssignment[];
+};
+
+export type UserCreateInput = {
+  displayName: string;
+  employeeNo?: string;
+  email?: string;
+  mobile?: string;
+};
+
+export type UserRoleUpdateInput = {
+  roleIds: string[];
+};

@@ -2,6 +2,7 @@ package com.aegisid.admin.app.application.service;
 
 import com.aegisid.admin.app.application.command.CreateApplicationCommand;
 import com.aegisid.admin.app.application.command.CreateOAuthClientCommand;
+import com.aegisid.admin.app.application.command.UpdatePermissionPolicyCommand;
 import com.aegisid.admin.app.application.query.CreatedClientSecret;
 import com.aegisid.admin.app.domain.model.Application;
 import com.aegisid.admin.app.domain.model.OAuthClient;
@@ -17,6 +18,8 @@ public interface ApplicationManagementService {
     Application enable(String id);
 
     Application disable(String id);
+
+    Application updatePermissionPolicy(UpdatePermissionPolicyCommand command);
 
     List<OAuthClient> listOAuthClients(String applicationId);
 

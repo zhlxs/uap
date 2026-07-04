@@ -39,10 +39,14 @@ import {
   enableApplication,
   listApplications,
   listOAuthClients,
-  listPermissionModes
+  listPermissionModes,
+  updatePermissionPolicy
 } from '../../api/applications';
 import { ApplicationCreatePanel } from './ApplicationCreatePanel';
+import { MemberAuthorizationPanel } from './MemberAuthorizationPanel';
 import { OAuthClientCreatePanel } from './OAuthClientCreatePanel';
+import { PermissionPolicyPanel } from './PermissionPolicyPanel';
+import { RolePermissionPanel } from './RolePermissionPanel';
 import { SecretRevealDialog } from './SecretRevealDialog';
 import type {
   Application,
@@ -50,7 +54,8 @@ import type {
   ApplicationMode,
   ClientSecret,
   OAuthClient,
-  OAuthClientCreateInput
+  OAuthClientCreateInput,
+  PermissionPolicyUpdateInput
 } from './types';
 
 const statusMap: Record<string, { color: string; text: string }> = {
@@ -60,6 +65,10 @@ const statusMap: Record<string, { color: string; text: string }> = {
 };
 
 const issuer = 'http://127.0.0.1:9100';
+
+function modeDisplayName(mode: string, modes: ApplicationMode[]) {
+  return modes.find((item) => item.mode === mode)?.displayName ?? mode;
+}
 
 export function ApplicationList() {
   const [applications, setApplications] = useState<Application[]>([]);
@@ -194,6 +203,24 @@ export function ApplicationList() {
     }
   }
 
+  async function handleUpdatePermissionPolicy(input: PermissionPolicyUpdateInput) {
+    if (!selected) {
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const updated = await updatePermissionPolicy(selected.id, input);
+      setApplications((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+      setSelected(updated);
+      void message.success('权限策略已保存');
+    } catch (exception) {
+      setError(exception instanceof Error ? exception.message : '保存权限策略失败');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const columns: ColumnsType<Application> = [
     {
       title: '应用',
@@ -220,7 +247,7 @@ export function ApplicationList() {
       title: '权限模式',
       dataIndex: 'permissionMode',
       width: 180,
-      render: (value: string) => <Tag icon={<SafetyCertificateOutlined />}>{value}</Tag>
+      render: (value: string) => <Tag icon={<SafetyCertificateOutlined />}>{modeDisplayName(value, modes)}</Tag>
     },
     {
       title: '状态',
@@ -345,7 +372,10 @@ export function ApplicationList() {
                       <Descriptions.Item label="应用编码">{selected.appCode}</Descriptions.Item>
                       <Descriptions.Item label="协议">{selected.protocol.toUpperCase()}</Descriptions.Item>
                       <Descriptions.Item label="应用类型">{selected.appType}</Descriptions.Item>
-                      <Descriptions.Item label="权限模式">{selected.permissionMode}</Descriptions.Item>
+                      <Descriptions.Item label="权限模式">
+                        {modeDisplayName(selected.permissionMode, modes)}
+                        <Typography.Text type="secondary">（{selected.permissionMode}）</Typography.Text>
+                      </Descriptions.Item>
                       <Descriptions.Item label="首页地址">{selected.homepageUrl || '-'}</Descriptions.Item>
                       <Descriptions.Item label="状态">
                         <Tag color={statusMap[selected.status]?.color}>{statusMap[selected.status]?.text ?? selected.status}</Tag>
@@ -414,13 +444,23 @@ export function ApplicationList() {
                 key: 'permission',
                 label: '权限模式',
                 children: (
-                  <Alert
-                    type="info"
-                    showIcon
-                    message={`当前模式：${selected.permissionMode}`}
-                    description="后续这里会承载菜单、按钮、API 和数据权限的接入策略配置。轻权限系统可只消费登录身份与基础 claims，强权限系统可进一步接入 UAP 权限模型与授权 API。"
+                  <PermissionPolicyPanel
+                    application={selected}
+                    modes={modes}
+                    busy={busy}
+                    onSubmit={handleUpdatePermissionPolicy}
                   />
                 )
+              },
+              {
+                key: 'role-permission',
+                label: '角色与权限',
+                children: <RolePermissionPanel application={selected} />
+              },
+              {
+                key: 'member-authorization',
+                label: '成员授权',
+                children: <MemberAuthorizationPanel application={selected} />
               },
               {
                 key: 'integration',
