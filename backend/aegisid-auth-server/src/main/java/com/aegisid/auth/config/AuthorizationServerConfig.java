@@ -51,7 +51,9 @@ public class AuthorizationServerConfig {
                         .defaultAuthenticationEntryPointFor(
                                 new LoginUrlAuthenticationEntryPoint("/login"),
                                 new MediaTypeRequestMatcher(MediaType.TEXT_HTML)))
-                .formLogin(formLogin -> formLogin.loginPage("/login"))
+                .formLogin(formLogin -> formLogin
+                        .loginPage("/login")
+                        .defaultSuccessUrl("/session", false))
                 .build();
     }
 
@@ -62,7 +64,10 @@ public class AuthorizationServerConfig {
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/login", "/assets/**", "/actuator/health", "/api/public/**").permitAll()
                         .anyRequest().authenticated())
-                .formLogin(formLogin -> formLogin.loginPage("/login").permitAll())
+                .formLogin(formLogin -> formLogin
+                        .loginPage("/login")
+                        .defaultSuccessUrl("/session", false)
+                        .permitAll())
                 .logout(logout -> logout.logoutSuccessUrl("/login?logout").permitAll())
                 .build();
     }

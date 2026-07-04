@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AegisID 已登录</title>
+    <link rel="stylesheet" th:href="@{/assets/auth-login.css(v='20260704')}">
+</head>
+<body>
+<main class="session-shell">
+    <section class="session-card">
+        <span class="brand-mark">A</span>
+        <p class="eyebrow">企业统一登录</p>
+        <h1>已完成登录</h1>
+        <p class="session-desc">当前认证会话已建立。通过业务系统发起访问时，AegisID 会自动完成授权跳转。</p>
+        <form th:action="@{/logout}" method="post">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+            <button class="secondary-button" type="submit">退出登录</button>
+        </form>
+    </section>
+</main>
+</body>
+</html>
