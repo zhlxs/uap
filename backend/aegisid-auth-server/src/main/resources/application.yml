@@ -4,10 +4,19 @@ server:
 spring:
   application:
     name: aegisid-auth-server
+  datasource:
+    url: ${AEGISID_DATASOURCE_URL:jdbc:h2:file:${user.home}/.aegisid/aegisid-dev;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1;AUTO_SERVER=TRUE}
+    username: ${AEGISID_DATASOURCE_USERNAME:sa}
+    password: ${AEGISID_DATASOURCE_PASSWORD:}
+    driver-class-name: ${AEGISID_DATASOURCE_DRIVER:org.h2.Driver}
+
+aegisid:
+  auth:
+    issuer: ${AEGISID_AUTH_ISSUER:http://localhost:9000}
+    jwk-location: ${AEGISID_AUTH_JWK_LOCATION:${user.home}/.aegisid/auth-jwk.json}
 
 management:
   endpoints:
     web:
       exposure:
         include: health,info
-

@@ -16,12 +16,15 @@ public class CurrentUserController {
     ApiResponse<CurrentUserResponse> currentUser(Authentication authentication) {
         Jwt jwt = ((JwtAuthenticationToken) authentication).getToken();
         String username = claimAsString(jwt, "preferred_username", authentication.getName());
+        String displayName = claimAsString(jwt, "name", username);
+        String tenantName = claimAsString(jwt, "tenant", "默认组织");
         return ApiResponse.ok(new CurrentUserResponse(
                 jwt.getSubject(),
                 username,
-                "默认组织",
-                List.of("平台管理员"),
-                List.of("admin:console:access")
+                displayName,
+                tenantName,
+                claimAsStringList(jwt, "roles"),
+                claimAsStringList(jwt, "permissions")
         ));
     }
 
@@ -33,9 +36,18 @@ public class CurrentUserController {
         return String.valueOf(value);
     }
 
+    private static List<String> claimAsStringList(Jwt jwt, String claimName) {
+        Object value = jwt.getClaims().get(claimName);
+        if (value instanceof List<?> list) {
+            return list.stream().map(String::valueOf).toList();
+        }
+        return List.of();
+    }
+
     public record CurrentUserResponse(
             String subject,
             String username,
+            String displayName,
             String tenantName,
             List<String> roles,
             List<String> permissions

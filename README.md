@@ -46,7 +46,13 @@ mvn -f backend\pom.xml test
 启动管理后台 API：
 
 ```powershell
-mvn -f backend\pom.xml -pl aegisid-admin-api -am spring-boot:run
+mvn -f backend\pom.xml -pl aegisid-admin-api spring-boot:run
+```
+
+启动认证服务：
+
+```powershell
+mvn -f backend\pom.xml -pl aegisid-auth-server spring-boot:run
 ```
 
 管理后台 API 默认地址：
@@ -55,11 +61,32 @@ mvn -f backend\pom.xml -pl aegisid-admin-api -am spring-boot:run
 http://127.0.0.1:9100
 ```
 
+认证服务默认地址：
+
+```text
+http://127.0.0.1:9000
+```
+
 健康检查：
 
 ```text
 http://127.0.0.1:9100/actuator/health
+http://127.0.0.1:9000/actuator/health
 ```
+
+启动顺序与说明：
+
+- 认证服务与管理后台 API 共享同一数据库；数据库结构与引导数据由管理后台 API 通过 Flyway 迁移创建。
+- 首次启动请先启动管理后台 API 完成迁移，再启动认证服务。
+- 认证服务只读取用户、账号、客户端与权限数据，不执行迁移。
+
+内置引导账号（仅用于本地开发，生产环境请通过管理后台维护）：
+
+```text
+用户名：admin
+口令：admin123
+```
+
 
 ## 前端命令
 
@@ -83,7 +110,31 @@ npm --prefix frontend\admin-console run build
 
 ## 本地数据库
 
-默认开发环境使用 H2 内存库，便于快速启动和接口验证。
+默认开发环境使用 H2 文件库，认证服务与管理后台 API 共享同一数据库文件，便于统一登录与权限令牌打通。
+
+默认位置（通过 `AUTO_SERVER` 支持多进程共享）：
+
+```text
+${user.home}/.aegisid/aegisid-dev
+```
+
+可通过环境变量覆盖数据源，用于切换到 PostgreSQL 等外部库：
+
+```text
+AEGISID_DATASOURCE_URL
+AEGISID_DATASOURCE_USERNAME
+AEGISID_DATASOURCE_PASSWORD
+AEGISID_DATASOURCE_DRIVER
+```
+
+认证服务签名密钥与发行方可通过环境变量配置：
+
+```text
+AEGISID_AUTH_ISSUER        默认 http://localhost:9000
+AEGISID_AUTH_JWK_LOCATION  默认 ${user.home}/.aegisid/auth-jwk.json
+```
+
+签名密钥在首次启动时生成并持久化到上述文件，保证重启后已签发令牌仍可校验；生产环境应改用受控密钥库。
 
 PostgreSQL 配置位于：
 
@@ -106,6 +157,9 @@ backend/aegisid-admin-api/src/main/resources/db/migration/
 ```text
 V1__init_aegisid_core.sql
 V2__add_oauth_client_secret.sql
+V3__add_application_role_permissions.sql
+V4__add_user_role_assignment.sql
+V5__seed_bootstrap_identity.sql
 ```
 
 ## 编码规范
@@ -141,6 +195,13 @@ docs/04-编码规范与工程约束.md
 - redirect_uri 基础安全校验
 - 默认 H2 本地开发库
 - PostgreSQL profile 配置
+- 认证服务接入共享库，读取真实用户、账号与客户端
+- 基于数据库的用户认证（iam_account + iam_user）
+- 基于数据库的注册客户端（uap_oauth_client）
+- 权限令牌声明：access token 与 id token 注入 uid、用户名、姓名、邮箱、租户、角色、权限与 scope
+- 权限按目标应用维度解析（用户在指定应用下的角色 / 权限 / scope）
+- 签名密钥持久化，发行方与数据源可通过环境变量配置
+- 引导身份数据 seed，统一登录与权限令牌开箱可用
 
 ## 重要提交
 
